@@ -858,6 +858,8 @@ const REWARD_IMAGES = [
   "images/reward/WhatsApp Image 2026-09-03 at 1.02.19 PM (2).jpeg"
 ];
 
+let popupTimer = null;
+
 function triggerReactionPopup(type, customText){
   const isLost=type==="lost";
   const pool=isLost?LOST_IMAGES:REWARD_IMAGES;
@@ -869,8 +871,10 @@ function triggerReactionPopup(type, customText){
 
   const pop=$("gamePopup");
   if(!pop) return;
-  $("gamePopupImg").src=rndImg;
-  $("gamePopupText").textContent=text;
+  const popImg=$("gamePopupImg");
+  const popTxt=$("gamePopupText");
+  if(popImg) popImg.src=rndImg;
+  if(popTxt) popTxt.textContent=text;
   pop.className="game-popup "+(isLost?"popup-lost":"popup-reward");
 
   // Center directly on top of the game character
@@ -881,8 +885,8 @@ function triggerReactionPopup(type, customText){
 
   if(popupTimer) clearTimeout(popupTimer);
   popupTimer=setTimeout(()=>{
-    pop.className="game-popup hidden";
-  },1600);
+    if(pop) pop.className="game-popup hidden";
+  },1200);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1249,19 +1253,23 @@ function doJump(strength=0.5){
 
 function respawnPlayerAtSameSpot(preferredPlat){
   if(lives<=0) return;
-  const pMidX=player.x+player.w/2;
-  const currentPlat=platforms.find(p=>p.x<=pMidX+15 && pMidX-15<=p.x+p.w);
-  const targetPlat=preferredPlat || currentPlat || lastSafePlat || platforms.find(p=>p.x<=player.x+60 && p.x+p.w>=player.x-60) || platforms.find(p=>p.x+p.w>=100) || platforms[0];
+  // Always find an active, visible platform currently on the screen
+  let targetPlat = preferredPlat;
+  if(!targetPlat || targetPlat.x + targetPlat.w < 60 || targetPlat.x > CFG.W - 60){
+    targetPlat = platforms.find(p => p.x <= player.x && player.x <= p.x + p.w && p.x + p.w >= 60) ||
+                 platforms.find(p => p.x + p.w >= 100 && p.x <= CFG.W - 60) ||
+                 platforms[0];
+  }
 
   if(targetPlat){
-    // Place player right at this platform's surface
-    player.x=clamp(player.x, targetPlat.x+20, targetPlat.x+Math.max(25, targetPlat.w-25));
+    // Place player right at this platform's safe surface
+    player.x=clamp(player.x, targetPlat.x+25, targetPlat.x+Math.max(30, targetPlat.w-30));
     player.y=targetPlat.y-player.h;
     player.vy=0;
     player.onGround=true;
     player.jumpFrame=0;
-    player.inv=CFG.INVULN*1.8;
-    currentSpeed=Math.max(currentSpeed, 110);
+    player.inv=2.0; // generous invulnerability flash to prevent repeated damage
+    currentSpeed=Math.max(currentSpeed, 120);
   }
 }
 
@@ -1304,14 +1312,14 @@ function updatePlayer(dt){
   }
 
   // Check if player fell into pit
-  if(player.y > CFG.H - 45 || player.y > (plat ? plat.y + 50 : 435)){
-    if(player.vy > 0 && player.y > 390){
+  if(player.inv<=0 && (player.y > CFG.H - 45 || player.y > (plat ? plat.y + 50 : 435))){
+    if(player.vy > 0 && player.y > 380){
       sfx("crush");
       doDamage(true); // force damage: lives-- and updateHUD()
       triggerReactionPopup("lost", "Fell into pit! 💥");
       emitParticles(player.x+player.w/2,CFG.H-20,14,["#ef4444","#f97316","#374151"],1.3);
       showToast("Fell into pit! 💥");
-      respawnPlayerAtSameSpot(lastSafePlat);
+      respawnPlayerAtSameSpot();
     }
   }
 
@@ -2303,14 +2311,8 @@ function update(dt){
   updateHUD();
 
   // Check level complete
-  if(score>=L.dist){
-    if(L.reqHearts>0 && collectedHearts<L.reqHearts){
-      if(Math.random()<0.02){
-        showToast(`Collect ${L.reqHearts} hearts to complete Level ${currentLevel}! 💖 (${collectedHearts}/${L.reqHearts})`);
-      }
-    }else{
-      completeLevel();
-    }
+  if(score>=L.dist && gameRunning){
+    completeLevel();
   }
 }
 
@@ -2390,16 +2392,21 @@ $("calibDoneBtn").addEventListener("click",()=>{
 // Game overlay button
 $("ovBtn").addEventListener("click",()=>{
   sfx("click");
-  const ov=$("gameOverlay");
-
   if(!gameRunning && lives<=0){
     startLevel(currentLevel);
+    gameRunning=true;
+    paused=false;
+    hideGameOverlay();
+    state=currentLevel===0?"TRAINING":"PLAYING";
     BGM.start();
     return;
   }
 
   if(!gameRunning && currentLevel===0 && score>0){
     startLevel(1);
+    gameRunning=true;
+    paused=false;
+    hideGameOverlay();
     state="PLAYING";
     BGM.start();
     return;
@@ -2420,9 +2427,11 @@ if($("jumpBtn")){
 // Skip warm-up to Level 1
 function skipToLevel1(){
   sfx("click");
-  gameRunning=false;
-  state="PLAYING";
   startLevel(1);
+  gameRunning=true;
+  paused=false;
+  hideGameOverlay();
+  state="PLAYING";
   BGM.start();
 }
 if($("ovSkipBtn")) $("ovSkipBtn").addEventListener("click", skipToLevel1);
@@ -2434,8 +2443,13 @@ $("mapNextBtn").addEventListener("click",()=>{
   if(completedLevels>=5){
     showReward();
   }else{
+    const nextLvl=completedLevels+1;
+    startLevel(nextLvl);
+    gameRunning=true;
+    paused=false;
+    hideGameOverlay();
     state="PLAYING";
-    startLevel(completedLevels+1);
+    BGM.start();
   }
 });
 
