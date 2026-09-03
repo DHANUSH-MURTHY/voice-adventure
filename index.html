@@ -365,6 +365,7 @@ canvas{width:100%;height:auto;max-height:68vh;display:block;touch-action:none;ba
         <div class="btn-row" style="justify-content:center;flex-direction:column;gap:8px;">
           <button class="btn" id="ovBtn">Start</button>
           <button class="btn btn-gold" id="ovSkipBtn" style="display:none">⚡ Skip & Start Level 1</button>
+          <button class="btn btn-gold" id="ovAssistSkipBtn" style="display:none;background:linear-gradient(135deg,#f59e0b,#ea580c)">🌟 Fast-Pass to Next Level →</button>
         </div>
       </div>
     </div>
@@ -375,10 +376,13 @@ canvas{width:100%;height:auto;max-height:68vh;display:block;touch-action:none;ba
     <button class="btn btn-gold btn-sm" id="warmupSkipBtn" style="display:none">⚡ Skip Warm-up → Start Level 1</button>
   </div>
   <div class="game-voice">
-    <div class="game-voice-label">🎙 <span id="voiceLabel">Voice power</span></div>
+    <div class="game-voice-label" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>🎙 <span id="voiceLabel">Voice power</span></span>
+      <button id="micToggleBtn" class="badge" style="cursor:pointer;border:none;background:var(--card2);color:var(--gold);font-weight:800;padding:4px 10px;border-radius:999px;">🎙️ Tap to Turn On Mic</button>
+    </div>
     <div class="voice-meter"><div class="voice-meter-fill" id="gameMeter"></div></div>
   </div>
-  <p class="game-tip">Gentle voice = run • Quick loud sound ("HA!") or tap JUMP</p>
+  <p class="game-tip">Gentle voice = run • Quick loud shout or tap JUMP • Shout mid-air to double jump!</p>
 </section>
 
 <!-- ═══ MAP / ROADMAP SCREEN ═══ -->
@@ -513,11 +517,17 @@ let toastTimer=0;
 
 // Player
 let player={x:100,y:CFG.GROUND-CFG.PLAYER_H,w:CFG.PLAYER_W,h:CFG.PLAYER_H,
-  vy:0,onGround:true,inv:0,runCycle:0,jumpFrame:0,facing:1};
+  vy:0,onGround:true,inv:0,runCycle:0,jumpFrame:0,facing:1,airJumps:0};
 // Obstacles, particles
 let obstacles=[], particles=[];
 // Training phases
 let trainPhase=0, trainWait=0, trainMoved=false, trainJumped=false;
+
+// ─── Adaptive Assist Mode (Activates after 3 attempts on any level) ───
+let levelAttempts={0:0, 1:0, 2:0, 3:0, 4:0, 5:0};
+function isAssistModeActive(){
+  return (levelAttempts[currentLevel]||0)>=3;
+}
 
 // ═══════════════════════════════════════════════════════════
 // AUDIO SYSTEM
@@ -537,19 +547,57 @@ const mic={
 
 async function enableMic(){
   try{
-    if(!navigator.mediaDevices?.getUserMedia) throw new Error("no mic API");
-    mic.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
-    mic.ctx=new(window.AudioContext||window.webkitAudioContext)();
-    if(mic.ctx.state==="suspended") await mic.ctx.resume();
+    if(!navigator.mediaDevices) navigator.mediaDevices={};
+    if(!navigator.mediaDevices.getUserMedia){
+      const legacy=navigator.getUserMedia||navigator.webkitGetUserMedia||navigator.mozGetUserMedia;
+      if(legacy){
+        navigator.mediaDevices.getUserMedia=(c)=>new Promise((res,rej)=>legacy.call(navigator,c,res,rej));
+      }
+    }
+    if(!navigator.mediaDevices.getUserMedia){
+      console.warn("getUserMedia API unavailable on this browser");
+      return false;
+    }
+
+    // Attempt 1: Advanced constraints (echo cancellation, noise suppression)
+    // Attempt 2 (Mobile Fallback): Simple {audio: true} for iOS Safari & Android Chrome compatibility
+    let stream=null;
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({
+        audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}
+      });
+    }catch(errConstraint){
+      console.warn("Retrying with simple {audio:true} for mobile device:", errConstraint);
+      stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    }
+
+    mic.stream=stream;
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    if(!mic.ctx){
+      mic.ctx=new AudioCtx();
+    }
+    if(mic.ctx.state==="suspended"){
+      await mic.ctx.resume();
+    }
+
     const src=mic.ctx.createMediaStreamSource(mic.stream);
     mic.analyser=mic.ctx.createAnalyser();
     mic.analyser.fftSize=1024;
     mic.dataArr=new Uint8Array(mic.analyser.fftSize);
     src.connect(mic.analyser);
     mic.ready=true;
+
+    if($("micToggleBtn")){
+      $("micToggleBtn").textContent="🎙️ Mic Active";
+      $("micToggleBtn").style.color="var(--green)";
+    }
     return true;
   }catch(e){
-    console.warn("Mic error:",e);
+    console.warn("Mic access error:", e);
+    if($("micToggleBtn")){
+      $("micToggleBtn").textContent="🎙️ Tap to Turn On Mic";
+      $("micToggleBtn").style.color="var(--gold)";
+    }
     return false;
   }
 }
@@ -563,77 +611,71 @@ function getRms(){
 }
 
 // Process voice: returns {voiceLevel: 0-1, shouldJump: bool, jumpStrength: 0-1}
-// ─── Scream Go Hero voice model ───
-// SILENCE → stop | SOFT → walk | MEDIUM → run | LOUD → fast | SUDDEN SHOUT → jump
+// ─── Voice Dynamics & Multi-Jump Shout Model ───
+// STEADY VOICE / SLOW SHOUT ("gooooo") → Moves forward fast, does NOT jump
+// SUDDEN SHOUT / 2ND SHOUT ("2nd hooooooo!") → Triggers jump (grounded OR mid-air)
 function processVoice(dt){
   const rms=getRms();
   mic.rawRms=rms;
 
-  // Smooth RMS with asymmetric attack/release for natural feel
-  // Fast attack (55% new) so the character responds immediately to voice onset
-  // Slower release (25% new) so character doesn't jerk to a halt on brief pauses
+  // Smooth RMS with responsive asymmetric filter
   const isRising=rms>mic.smoothRms;
   const smoothFactor=isRising?0.55:0.25;
   mic.smoothRms=mic.smoothRms*(1-smoothFactor)+rms*smoothFactor;
 
-  // History (keep last 30 frames ≈ 0.5s at 60fps)
+  // History (keep last 24 frames ≈ 400ms)
   mic.rmsHist.push(rms);
-  if(mic.rmsHist.length>30) mic.rmsHist.shift();
+  if(mic.rmsHist.length>24) mic.rmsHist.shift();
 
-  // Recent average (last 12 frames ≈ 200ms)
-  const recent=mic.rmsHist.slice(-12);
+  // Recent average (last 10 frames ≈ 160ms)
+  const recent=mic.rmsHist.slice(-10);
   const recentAvg=recent.reduce((a,b)=>a+b,0)/recent.length;
 
   // Cooldowns
   if(mic.jumpCD>0) mic.jumpCD-=dt;
-  if(mic.jumpHyst>0) mic.jumpHyst-=dt;
+  if(mic.jumpHyst>0) mic.jumpHyst-=dt*1.8;
 
-  // === Movement: Silence → Soft → Normal → Loud ===
+  // === Movement: Voice Level Controls Speed (Steady shout = maximum forward speed, no jump) ===
   const moveT=mic.moveThreshold;
   let voiceLevel=0;
   if(mic.smoothRms>moveT){
-    // Map smoothRms to 0-1 voice level using calibrated voice range
     const voiceRange=Math.max(0.015, (mic.voiceNormal||0.05)*1.5 - moveT);
     const rawVoice=clamp((mic.smoothRms-moveT)/voiceRange, 0, 1);
-    // Slightly concave power curve: soft voice → gentle walk, medium → normal, loud → fast
-    // 0.65 exponent gives more responsiveness in the low-mid range
     voiceLevel=Math.pow(rawVoice, 0.65);
   }
 
-  // === Jump Detection: Scream Go Hero edge-triggered shout detection ===
+  // === Jump Detection: Edge-triggered shout spike ===
   let shouldJump=false;
   let jumpStrength=0.5;
-  // Raise effective threshold slightly during hysteresis to avoid echo-triggered re-jumps
-  const effectiveJumpT=mic.jumpThreshold*(1+mic.jumpHyst*0.3);
+  const effectiveJumpT=mic.jumpThreshold*(1+Math.max(0, mic.jumpHyst)*0.20);
 
-  // Detect spike: current raw RMS rises sharply above recent average AND exceeds jump threshold
-  // Two conditions: either 1.4× above recent average OR 1.3× above the smooth value
-  const isSpike=rms>effectiveJumpT && (rms>recentAvg*1.40 || rms>mic.smoothRms*1.30);
+  // Sharp rise spike: sound rises quickly above recent rolling average
+  const isSpike=rms>effectiveJumpT && (rms>recentAvg*1.32 || rms>mic.smoothRms*1.22);
 
-  // Track rising-edge frames (how many consecutive frames RMS has been climbing toward a spike)
-  if(rms>mic.prevRms*1.10 && rms>effectiveJumpT*0.65){
+  // Track rising-edge frames
+  if(rms>mic.prevRms*1.08 && rms>effectiveJumpT*0.60){
     mic.spikeFrames++;
   }else{
-    mic.spikeFrames=Math.max(0,mic.spikeFrames-1);
+    mic.spikeFrames=Math.max(0, mic.spikeFrames-1);
   }
 
-  // Track sustain frames: how long RMS has been above jump threshold
-  // Used to ensure ONE jump per sustained shout — not continuous jumping
+  // Track sustain frames: if user makes a long steady sound, sustainFrames grows
+  // A long steady shout ("gooooo") moves forward at full speed without triggering jumps
   if(rms>effectiveJumpT*0.70){
     mic.sustainFrames++;
   }else{
     mic.sustainFrames=0;
   }
 
-  // Trigger: requires initial spike rise (1-8 frames), not mid-sustained-yell (< 12 frames), cooldown done
-  if(isSpike && mic.spikeFrames>=1 && mic.spikeFrames<=8 && mic.sustainFrames<12 && mic.jumpCD<=0){
+  // Trigger jump: requires fresh onset spike (1-7 frames), NOT a drawn-out sustained yell (>8 frames), cooldown done
+  // When user gives a 2nd shout ("goooo ... 2nd hooooooo!"), the dip resets sustainFrames, allowing the 2nd jump!
+  if(isSpike && mic.spikeFrames>=1 && mic.spikeFrames<=7 && mic.sustainFrames<9 && mic.jumpCD<=0){
     shouldJump=true;
     const delta=rms-effectiveJumpT;
     const maxDelta=Math.max(0.04,(mic.jumpPeak||0.20)-effectiveJumpT);
-    // jumpStrength: 0.15 (tiny hop from mild spike) to 1.0 (max leap from loud shout)
-    jumpStrength=clamp(0.15+(delta/maxDelta)*0.85, 0.15, 1.0);
-    mic.jumpCD=0.40; // debounce: one scream = exactly ONE jump
-    mic.jumpHyst=0.35; // briefly raise threshold to block echo re-triggers
+    jumpStrength=clamp(0.20+(delta/maxDelta)*0.80, 0.20, 1.0);
+    mic.jumpCD=0.22; // Snappy recovery: allows immediate 2nd shout mid-air ("goooo -> hooooo!")
+    mic.jumpHyst=0.20;
     mic.spikeFrames=0;
     mic.sustainFrames=0;
   }
@@ -1242,7 +1284,7 @@ let lastSafePlat=null;
 function resetPlayer(){
   player.x=100; player.y=CFG.GROUND-CFG.PLAYER_H;
   player.vy=0; player.onGround=true; player.inv=0;
-  player.runCycle=0; player.jumpFrame=0;
+  player.runCycle=0; player.jumpFrame=0; player.airJumps=0;
   lastSafePlat=null;
 }
 
@@ -1251,24 +1293,34 @@ let jumpForwardBoost=0;
 function doJump(strength=0.5){
   if(!gameRunning||paused) return;
   const s=(typeof strength==="number" && !isNaN(strength))?clamp(strength,0,1):0.65;
-  if(player.onGround){
-    // Scream Go Hero: jump height scales proportionally with shout intensity
-    // Small shout → little hop (-420px/s), Medium → standard (-580px/s), Loud → high leap (-740px/s)
-    const minJ=-420;
-    const maxJ=-740;
-    player.vy=lerp(minJ,maxJ,s);
-    player.onGround=false;
-    player.jumpFrame=1;
+
+  // Ground jump OR mid-air shout jump / double jump ("goooo -> 2nd hooooooo!")
+  // Allows up to 3 mid-air boosts so player can chain shouts in the air
+  if(player.onGround || (player.airJumps||0) < 3){
+    const isMidAir = !player.onGround;
+    if(isMidAir){
+      player.airJumps = (player.airJumps||0) + 1;
+    }else{
+      player.airJumps = 0;
+    }
+
+    // Upward launch velocity (mid-air jump resets downward fall momentum)
+    const minJ = isMidAir ? -490 : -420;
+    const maxJ = isMidAir ? -760 : -740;
+    player.vy = lerp(minJ, maxJ, s);
+    player.onGround = false;
+    player.jumpFrame = 1;
 
     // Forward leap momentum proportional to shout intensity
-    // Small jump → gentle forward push; Big jump → strong forward arc across gaps
-    const L=LEVELS[currentLevel]||LEVELS[0];
-    const minLeap=Math.max(L.speed*0.55, 130);  // small hop: modest forward push
-    const maxLeap=Math.max(L.speed*1.35, 290);  // big leap: strong forward arc
-    jumpForwardBoost=lerp(minLeap,maxLeap,s);
-    currentSpeed=Math.max(currentSpeed, jumpForwardBoost);
+    const L = LEVELS[currentLevel]||LEVELS[0];
+    const minLeap = Math.max(L.speed*0.60, 140);
+    const maxLeap = Math.max(L.speed*1.40, 300);
+    jumpForwardBoost = lerp(minLeap, maxLeap, s);
+    currentSpeed = Math.max(currentSpeed, jumpForwardBoost);
 
-    emitParticles(player.x+player.w/2,player.y+player.h,6,["#fbbf24","#f59e0b","#fff"]);
+    // Dynamic particle burst (cyan/pink for mid-air double jump, gold for ground jump)
+    const colors = isMidAir ? ["#38bdf8", "#ec4899", "#fbbf24", "#fff"] : ["#fbbf24", "#f59e0b", "#fff"];
+    emitParticles(player.x+player.w/2, player.y+player.h, isMidAir ? 10 : 6, colors);
     sfx("jump");
   }
 }
@@ -1290,6 +1342,7 @@ function respawnPlayerAtSameSpot(preferredPlat){
     player.vy=0;
     player.onGround=true;
     player.jumpFrame=0;
+    player.airJumps=0;
     player.inv=2.0; // generous invulnerability flash to prevent repeated damage
     currentSpeed=Math.max(currentSpeed, 120);
   }
@@ -1317,15 +1370,27 @@ function updatePlayer(dt){
       player.vy=0;
       player.onGround=true;
       player.jumpFrame=0;
+      player.airJumps=0; // reset mid-air jumps upon landing
       lastSafePlat=plat;
     }else if(player.y>targetGround+30 && player.x+player.w>plat.x && player.x<plat.x+plat.w){
       // Hit platform side wall (jump wasn't high enough)
       if(player.inv<=0){
-        doDamage();
-        sfx("hit");
-        triggerReactionPopup("lost", "Wall hit! 💥");
-        showToast("Hit platform wall! 💥");
-        respawnPlayerAtSameSpot(plat);
+        if(isAssistModeActive()){
+          // Assist Mode: Auto-climb onto platform!
+          player.y=targetGround;
+          player.vy=-460;
+          player.inv=1.5;
+          currentSpeed=Math.max(currentSpeed, 220);
+          triggerReactionPopup("reward", "Auto-Climb! 🌟");
+          showToast("Auto-Climb! 🌟");
+          sfx("jump");
+        }else{
+          doDamage();
+          sfx("hit");
+          triggerReactionPopup("lost", "Wall hit! 💥");
+          showToast("Hit platform wall! 💥");
+          respawnPlayerAtSameSpot(plat);
+        }
       }
     }
   }else{
@@ -1336,12 +1401,24 @@ function updatePlayer(dt){
   // Check if player fell into pit
   if(player.inv<=0 && (player.y > CFG.H - 45 || player.y > (plat ? plat.y + 50 : 435))){
     if(player.vy > 0 && player.y > 380){
-      sfx("crush");
-      doDamage(true); // force damage: lives-- and updateHUD()
-      triggerReactionPopup("lost", "Fell into pit! 💥");
-      emitParticles(player.x+player.w/2,CFG.H-20,14,["#ef4444","#f97316","#374151"],1.3);
-      showToast("Fell into pit! 💥");
-      respawnPlayerAtSameSpot();
+      if(isAssistModeActive()){
+        // Assist Mode: Spring Rescue so player never gets stuck in pits!
+        player.y = 350;
+        player.vy = -760;
+        player.inv = 2.5;
+        currentSpeed = Math.max(currentSpeed, 260);
+        sfx("jump");
+        emitParticles(player.x+player.w/2, 420, 20, ["#fbbf24", "#ec4899", "#38bdf8", "#fff"]);
+        triggerReactionPopup("reward", "Spring Rescue! 🚀✨");
+        showToast("Spring Rescue! 🚀✨");
+      }else{
+        sfx("crush");
+        doDamage(true); // force damage: lives-- and updateHUD()
+        triggerReactionPopup("lost", "Fell into pit! 💥");
+        emitParticles(player.x+player.w/2,CFG.H-20,14,["#ef4444","#f97316","#374151"],1.3);
+        showToast("Fell into pit! 💥");
+        respawnPlayerAtSameSpot();
+      }
     }
   }
 
@@ -1467,6 +1544,18 @@ function drawPlayerChar(ctx){
     ctx.beginPath();
     ctx.ellipse(px+18, py+50, 16, 4, 0, 0, Math.PI*2);
     ctx.fill();
+  }
+
+  // Super Hero Golden Shield Aura when Assist Mode is Active
+  if(isAssistModeActive()){
+    ctx.save();
+    ctx.strokeStyle="rgba(245,158,11,0.75)";
+    ctx.lineWidth=2.5;
+    ctx.setLineDash([6,4]);
+    ctx.beginPath();
+    ctx.arc(px+18, py+24, 28, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
   }
 
   const bodyColor="#3b82f6";
@@ -1908,6 +1997,18 @@ function drawPlatforms(ctx, levelIdx){
 // DAMAGE / LIFE SYSTEM
 // ═══════════════════════════════════════════════════════════
 function doDamage(force=false){
+  if(isAssistModeActive()){
+    // Assist Mode: Auto-escape from hazards without taking damage or losing lives!
+    player.inv=2.0;
+    player.vy=-560; // Auto-dodge jump over hazard
+    currentSpeed=Math.max(currentSpeed, 240);
+    emitParticles(player.x+player.w/2, player.y+player.h/2, 14, ["#fbbf24","#38bdf8","#ec4899","#fff"]);
+    sfx("win");
+    triggerReactionPopup("reward", "Shield Dodge! 🛡️✨");
+    showToast("Auto-Dodge! 🛡️✨");
+    return;
+  }
+
   if(!force && player.inv>0) return;
   lives--;
   player.inv=CFG.INVULN;
@@ -1928,9 +2029,12 @@ function doDamage(force=false){
       $("ovImg").src=rndLost;
       $("ovImageWrap").style.display="block";
     }
+    if($("ovAssistSkipBtn")){
+      $("ovAssistSkipBtn").style.display="block";
+    }
     showGameOverlay(
       "Oh no! 💥",
-      "The battlefield got you. But the adventure isn't over!",
+      isAssistModeActive() ? "Super Assist will protect you on your next try!" : "The battlefield got you. Tap Try Again or Fast-Pass!",
       "Try Again"
     );
     showToast("Don't give up, Rakshita! 💪");
@@ -2082,6 +2186,9 @@ function showToast(msg){
 function startLevel(idx){
   currentLevel=idx;
   const L=LEVELS[idx];
+  levelAttempts[idx]=(levelAttempts[idx]||0)+1;
+  const isAssist=isAssistModeActive();
+
   lives=CFG.MAX_LIVES;
   collectedHearts=0;
   score=0; world=0;
@@ -2098,6 +2205,11 @@ function startLevel(idx){
 
   if($("ovSkipBtn")) $("ovSkipBtn").style.display=idx===0?"block":"none";
   if($("warmupSkipBtn")) $("warmupSkipBtn").style.display=idx===0?"block":"none";
+  if($("ovAssistSkipBtn")) $("ovAssistSkipBtn").style.display=isAssist?"block":"none";
+
+  if(isAssist){
+    showToast(`🌟 Super Assist Active! Auto-Dodge & Speed Boost! 🚀`);
+  }
 
   if(idx===0){
     showGameOverlay("Warm-up Ground 🏋️","Your guide will teach you the controls. Gentle voice = move. Quick loud sound = jump!","Start warm-up");
@@ -2112,13 +2224,14 @@ function startLevel(idx){
     ];
     showGameOverlay(
       idx===5?"Final Level! 🔥":`Level ${idx}`,
-      personalMsgs[idx]||"Use your voice to move. A short loud sound to jump!",
+      isAssist ? "🌟 Super Assist is Active! Auto-dodge will protect you — have fun! 🚀" : (personalMsgs[idx]||"Use your voice to move. A short loud sound to jump!"),
       "Start"
     );
   }
 }
 
 function completeLevel(){
+  levelAttempts[currentLevel]=0;
   gameRunning=false;
   sfx("win");
   triggerReactionPopup("reward", "Level Cleared! 🌟");
@@ -2318,9 +2431,10 @@ function update(dt){
   // Jump from voice with loudness-dependent jump strength
   if(shouldJump) doJump(jumpStrength);
 
-  // World scroll
+  // World scroll — accelerated in Assist Mode so level finishes fast and fun!
+  const assistMult = isAssistModeActive() ? 1.75 : 1.0;
   world+=currentSpeed*dt;
-  score+=currentSpeed*dt;
+  score+=currentSpeed*dt*assistMult;
 
   // Scroll platforms
   updatePlatforms(dt);
@@ -2463,6 +2577,49 @@ function skipToLevel1(){
 }
 if($("ovSkipBtn")) $("ovSkipBtn").addEventListener("click", skipToLevel1);
 if($("warmupSkipBtn")) $("warmupSkipBtn").addEventListener("click", skipToLevel1);
+
+// Fast-Pass to Next Level in Assist Mode
+if($("ovAssistSkipBtn")){
+  $("ovAssistSkipBtn").addEventListener("click", ()=>{
+    sfx("click");
+    if(currentLevel < 5){
+      startLevel(currentLevel + 1);
+    } else {
+      showRoadmap();
+    }
+    gameRunning = true;
+    paused = false;
+    hideGameOverlay();
+    state = "PLAYING";
+    BGM.start();
+  });
+}
+
+// Interactive Mic Toggle for Mobile & Desktop (one-tap mic activation)
+if($("micToggleBtn")){
+  $("micToggleBtn").addEventListener("click", async()=>{
+    sfx("click");
+    showToast("Connecting microphone... 🎤");
+    const ok = await enableMic();
+    if(ok){
+      showToast("Microphone connected! 🎤✨");
+      $("micToggleBtn").textContent = "🎙️ Mic Active";
+      $("micToggleBtn").style.color = "var(--green)";
+    }else{
+      showToast("Tap 🔒 or 'AA' in address bar to Allow Mic! ⚠️");
+    }
+  });
+}
+
+// Auto-enable mic on game start button if not already active
+$("ovBtn").addEventListener("click", ()=>{
+  if(!mic.ready) enableMic().catch(()=>{});
+});
+if($("jumpBtn")){
+  $("jumpBtn").addEventListener("click", ()=>{
+    if(!mic.ready) enableMic().catch(()=>{});
+  });
+}
 
 // Map next button
 $("mapNextBtn").addEventListener("click",()=>{
