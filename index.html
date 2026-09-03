@@ -362,15 +362,17 @@ canvas{width:100%;height:auto;max-height:68vh;display:block;touch-action:none;ba
         </div>
         <div class="overlay-big" id="ovTitle">Ready?</div>
         <p id="ovText">Use your voice to move forward. A short loud sound makes you jump!</p>
-        <div class="btn-row" style="justify-content:center">
+        <div class="btn-row" style="justify-content:center;flex-direction:column;gap:8px;">
           <button class="btn" id="ovBtn">Start</button>
+          <button class="btn btn-gold" id="ovSkipBtn" style="display:none">⚡ Skip & Start Level 1</button>
         </div>
       </div>
     </div>
     <div class="toast hidden" id="gameToast">Nice! 🎉</div>
   </div>
-  <div class="game-action-wrap" style="margin-top:6px;">
+  <div class="game-action-wrap" style="margin-top:6px;display:flex;flex-direction:column;gap:6px;">
     <button class="btn btn-jump" id="jumpBtn">⬆ JUMP</button>
+    <button class="btn btn-gold btn-sm" id="warmupSkipBtn" style="display:none">⚡ Skip Warm-up → Start Level 1</button>
   </div>
   <div class="game-voice">
     <div class="game-voice-label">🎙 <span id="voiceLabel">Voice power</span></div>
@@ -1210,12 +1212,16 @@ function spawnConfetti(count=40){
 }
 
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // PLAYER
 // ═══════════════════════════════════════════════════════════
+let lastSafePlat=null;
+
 function resetPlayer(){
   player.x=100; player.y=CFG.GROUND-CFG.PLAYER_H;
   player.vy=0; player.onGround=true; player.inv=0;
   player.runCycle=0; player.jumpFrame=0;
+  lastSafePlat=null;
 }
 
 let jumpForwardBoost=0;
@@ -1241,6 +1247,24 @@ function doJump(strength=0.5){
   }
 }
 
+function respawnPlayerAtSameSpot(preferredPlat){
+  if(lives<=0) return;
+  const pMidX=player.x+player.w/2;
+  const currentPlat=platforms.find(p=>p.x<=pMidX+15 && pMidX-15<=p.x+p.w);
+  const targetPlat=preferredPlat || currentPlat || lastSafePlat || platforms.find(p=>p.x<=player.x+60 && p.x+p.w>=player.x-60) || platforms.find(p=>p.x+p.w>=100) || platforms[0];
+
+  if(targetPlat){
+    // Place player right at this platform's surface
+    player.x=clamp(player.x, targetPlat.x+20, targetPlat.x+Math.max(25, targetPlat.w-25));
+    player.y=targetPlat.y-player.h;
+    player.vy=0;
+    player.onGround=true;
+    player.jumpFrame=0;
+    player.inv=CFG.INVULN*1.8;
+    currentSpeed=Math.max(currentSpeed, 110);
+  }
+}
+
 function updatePlayer(dt){
   // Safety guard against NaN
   if(isNaN(player.y)||isNaN(player.vy)||isNaN(player.x)){
@@ -1263,6 +1287,7 @@ function updatePlayer(dt){
       player.vy=0;
       player.onGround=true;
       player.jumpFrame=0;
+      lastSafePlat=plat;
     }else if(player.y>targetGround+30 && player.x+player.w>plat.x && player.x<plat.x+plat.w){
       // Hit platform side wall (jump wasn't high enough)
       if(player.inv<=0){
@@ -1270,8 +1295,8 @@ function updatePlayer(dt){
         sfx("hit");
         triggerReactionPopup("lost", "Wall hit! 💥");
         showToast("Hit platform wall! 💥");
+        respawnPlayerAtSameSpot(plat);
       }
-      player.vy=Math.max(140, player.vy); // fall downward into pit
     }
   }else{
     // Over a pit/gap between platforms!
@@ -1280,29 +1305,13 @@ function updatePlayer(dt){
 
   // Check if player fell into pit
   if(player.y > CFG.H - 45 || player.y > (plat ? plat.y + 50 : 435)){
-    if(player.vy > 0 && player.y > 400){
+    if(player.vy > 0 && player.y > 390){
       sfx("crush");
       doDamage(true); // force damage: lives-- and updateHUD()
       triggerReactionPopup("lost", "Fell into pit! 💥");
       emitParticles(player.x+player.w/2,CFG.H-20,14,["#ef4444","#f97316","#374151"],1.3);
       showToast("Fell into pit! 💥");
-
-      if(lives>0){
-        // Find safe platform to respawn on solid ground
-        let safePlat=platforms.find(p=>p.x+p.w>=130 && p.x<=CFG.W-60);
-        if(!safePlat) safePlat=platforms.find(p=>p.x>-60 && p.x+p.w>60);
-        if(!safePlat) safePlat=platforms[0];
-
-        if(safePlat){
-          player.x=clamp(safePlat.x+Math.min(45,safePlat.w/2), 70, 200);
-          player.y=safePlat.y-player.h;
-          player.vy=0;
-          player.onGround=true;
-          player.jumpFrame=0;
-          player.inv=CFG.INVULN*1.5;
-          currentSpeed=Math.max(currentSpeed, 120);
-        }
-      }
+      respawnPlayerAtSameSpot(lastSafePlat);
     }
   }
 
@@ -1320,7 +1329,7 @@ function updatePlayer(dt){
             triggerReactionPopup("lost", "Spikes! 💥");
             emitParticles(player.x+player.w/2,p.y-10,8,["#ef4444","#fbbf24","#fff"]);
             showToast("Hit spikes! 💥");
-            player.vy=-220; // bounce off spikes
+            respawnPlayerAtSameSpot(p);
             break;
           }
         }
@@ -1335,13 +1344,13 @@ function updatePlayer(dt){
         const ohH=(oh.h||65)+(oh.spikes?18:0);
         const ohRect={x:ox, y:ohY, w:ow, h:ohH};
         if(rectsHit(player,ohRect)){
-          player.vy=Math.max(220,player.vy+120); // bounce down sharply
           if(player.inv<=0){
             doDamage();
             sfx("shock");
             triggerReactionPopup("lost", "Too high! ⚡");
             emitParticles(player.x+player.w/2,ohY+ohH,8,["#ef4444","#38bdf8","#fff"]);
             showToast("Hit overhead spikes! ⚡");
+            respawnPlayerAtSameSpot(p);
           }
         }
       }
@@ -1355,6 +1364,7 @@ function updatePlayer(dt){
           triggerReactionPopup("lost", "Falling rock! 💥");
           emitParticles(player.x+player.w/2,player.y+player.h/2,10,["#78716c","#ef4444","#fbbf24"]);
           showToast("Watch out for falling rocks! ⚠️");
+          respawnPlayerAtSameSpot(p);
         }
       }
 
@@ -1367,6 +1377,7 @@ function updatePlayer(dt){
           triggerReactionPopup("lost", "Arrow hit! 🏹");
           emitParticles(player.x+player.w/2,player.y+player.h/2,10,["#f97316","#ef4444","#fff"]);
           showToast("Arrow hit! 🏹");
+          respawnPlayerAtSameSpot(p);
         }
       }
 
@@ -1379,6 +1390,7 @@ function updatePlayer(dt){
           triggerReactionPopup("lost", "Blade! 💥");
           emitParticles(player.x+player.w/2,player.y+player.h/2,10,["#ef4444","#38bdf8","#fff"]);
           showToast("Rotating blade! ⚡");
+          respawnPlayerAtSameSpot(p);
         }
       }
 
@@ -2054,7 +2066,8 @@ function startLevel(idx){
   showScreen("gameScreen");
   updateHUD();
 
-  if($("skipBtn")) $("skipBtn").style.display=idx===0?"":"none";
+  if($("ovSkipBtn")) $("ovSkipBtn").style.display=idx===0?"block":"none";
+  if($("warmupSkipBtn")) $("warmupSkipBtn").style.display=idx===0?"block":"none";
 
   if(idx===0){
     showGameOverlay("Warm-up Ground 🏋️","Your guide will teach you the controls. Gentle voice = move. Quick loud sound = jump!","Start warm-up");
@@ -2403,6 +2416,17 @@ $("ovBtn").addEventListener("click",()=>{
 if($("jumpBtn")){
   $("jumpBtn").addEventListener("click",()=>{ doJump(0.65); });
 }
+
+// Skip warm-up to Level 1
+function skipToLevel1(){
+  sfx("click");
+  gameRunning=false;
+  state="PLAYING";
+  startLevel(1);
+  BGM.start();
+}
+if($("ovSkipBtn")) $("ovSkipBtn").addEventListener("click", skipToLevel1);
+if($("warmupSkipBtn")) $("warmupSkipBtn").addEventListener("click", skipToLevel1);
 
 // Map next button
 $("mapNextBtn").addEventListener("click",()=>{
