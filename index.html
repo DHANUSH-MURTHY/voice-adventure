@@ -884,33 +884,31 @@ const TTS={
     const en=v.filter(x=>/en/i.test(x.lang));
     const pool=en.length?en:v;
 
-    // Strict filter to EXCLUDE known female voices across Windows, Mac, iOS, Android, and Chrome:
+    // Strict filter to EXCLUDE known female voices
     const isFemale=(x)=>{
       const n=((x.name||"")+" "+(x.voiceURI||"")).toLowerCase();
       return /(female|woman|girl|zira|hazel|susan|heera|samantha|karen|moira|tessa|veena|fiona|victoria|allison|ava|aria|jenny|emma|sonia|serena|clara|libby|natasha|google us english|sfg|tpf|iob|cxx|fis|gba|ahp|f01|f02|voice 2|voice 4)/i.test(n);
     };
 
-    // Filter to known MALE voices across all OSes:
+    // Filter to known MALE voices
     const isMale=(x)=>{
       const n=((x.name||"")+" "+(x.voiceURI||"")).toLowerCase();
       return /(male|man|boy|david|mark|guy|christopher|ryan|eric|andrew|brian|steffan|roger|george|ravi|daniel|arthur|oliver|fred|aaron|gordon|rishi|alex|evan|nathan|tom|bruce|iom|iol|rjs|gbb|enc|end|ene|afh|m01|m02|voice 1|voice 3|#male|-m-)/i.test(n) && !isFemale(x);
     };
 
-    // Prefer "network" or "online" or "natural" voices for smoothness
-    const isSmooth = (x) => /network|online|natural|neural/i.test(x.name || x.voiceURI);
+    // Prefer local over network on Android/mobile to avoid silent network failures
+    const isLocal=(x)=> !/network|online/i.test(x.name||x.voiceURI);
 
-    // 1. Highest priority: Explicit male smooth/network voice in English
-    let best=pool.find(x=>isMale(x) && isSmooth(x))
-      || pool.find(x=>isMale(x) && /david/i.test(x.name))
-      || pool.find(x=>isMale(x) && /uk english male|us english male/i.test(x.name))
-      || pool.find(x=>isMale(x) && /daniel|iom|rjs|alex|fred/i.test(x.name))
-      || pool.find(x=>isMale(x))
-      // 2. Second priority: Any voice in any language that is explicitly male
+    let best = 
+         pool.find(x=>isMale(x) && /david/i.test(x.name))
+      || pool.find(x=>isMale(x) && isLocal(x) && /uk english male|us english male/i.test(x.name))
+      || pool.find(x=>isMale(x) && isLocal(x) && /daniel|iom|rjs|alex|fred/i.test(x.name))
+      || pool.find(x=>isMale(x) && isLocal(x))
+      || pool.find(x=>isMale(x)) // fallback to any male (including network if local not found)
+      || v.find(x=>isMale(x) && isLocal(x))
       || v.find(x=>isMale(x))
-      // 3. Third priority: Non-female English voice
+      || pool.find(x=>!isFemale(x) && isLocal(x))
       || pool.find(x=>!isFemale(x))
-      // 4. Fallback: non-female any language
-      || v.find(x=>!isFemale(x))
       || pool[0] || v[0];
 
     return best;
