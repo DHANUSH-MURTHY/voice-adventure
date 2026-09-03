@@ -867,7 +867,7 @@ function showScreen(id){
 // ═══════════════════════════════════════════════════════════
 // TEXT-TO-SPEECH SYSTEM (Smooth, Clear, Lovely Voice Tuning)
 // ═══════════════════════════════════════════════════════════
-const TTS_CONFIG={rate:0.92,pitch:0.84,volume:1.0};
+const TTS_CONFIG={rate:0.92,pitch:0.85,volume:1.0};
 
 const TTS={
   available:'speechSynthesis' in window,
@@ -885,27 +885,32 @@ const TTS={
     const pool=en.length?en:v;
 
     // Strict filter to EXCLUDE known female voices across Windows, Mac, iOS, Android, and Chrome:
+    // Includes Android Google voice codes (sfg, tpf, iob, cxx, fis, gba, ahp) and Samsung (f01, f02)
     const isFemale=(x)=>{
       const n=((x.name||"")+" "+(x.voiceURI||"")).toLowerCase();
-      return /(female|woman|girl|zira|hazel|samantha|karen|moira|tessa|veena|fiona|victoria|susan|allison|ava|aria|jenny|emma|sonia|serena|clara|libby|natasha|google us english)/i.test(n);
+      return /(female|woman|girl|zira|hazel|susan|heera|samantha|karen|moira|tessa|veena|fiona|victoria|allison|ava|aria|jenny|emma|sonia|serena|clara|libby|natasha|google us english|sfg|tpf|iob|cxx|fis|gba|ahp|f01|f02|voice 2|voice 4)/i.test(n);
     };
 
-    // Filter to known MALE voices:
+    // Filter to known MALE voices across all OSes:
+    // Android codes: iom, iol, rjs, gbb, enc, end, ene, afh, m01, m02
+    // Windows: david, mark, guy, christopher, ryan, eric, andrew, brian, steffan, roger, george, ravi
+    // iOS/Mac: daniel, arthur, oliver, fred, aaron, gordon, rishi, alex, evan, nathan, tom, bruce, voice 1, voice 3
     const isMale=(x)=>{
       const n=((x.name||"")+" "+(x.voiceURI||"")).toLowerCase();
-      return /(male|man|boy|david|mark|guy|christopher|ryan|eric|andrew|brian|steffan|roger|george|daniel|arthur|oliver|fred|aaron|gordon|rishi|alex|evan|nathan|tom|bruce|#male|-m-)/i.test(n) && !isFemale(x);
+      return /(male|man|boy|david|mark|guy|christopher|ryan|eric|andrew|brian|steffan|roger|george|ravi|daniel|arthur|oliver|fred|aaron|gordon|rishi|alex|evan|nathan|tom|bruce|iom|iol|rjs|gbb|enc|end|ene|afh|m01|m02|voice 1|voice 3|#male|-m-)/i.test(n) && !isFemale(x);
     };
 
-    // 1. First priority: Explicit male voice in English
+    // 1. Highest priority: Explicit male voice in English
     let best=pool.find(x=>isMale(x) && /natural|neural/i.test(x.name))
       || pool.find(x=>isMale(x) && /david/i.test(x.name))
       || pool.find(x=>isMale(x) && /uk english male|us english male/i.test(x.name))
+      || pool.find(x=>isMale(x) && /daniel|iom|rjs|alex|fred/i.test(x.name))
       || pool.find(x=>isMale(x))
-      // 2. Second priority: Any voice in all voices that is explicitly male
+      // 2. Second priority: Any voice in any language that is explicitly male
       || v.find(x=>isMale(x))
       // 3. Third priority: Non-female English voice
       || pool.find(x=>!isFemale(x))
-      // 4. Fallback to non-female any language
+      // 4. Fallback: non-female any language
       || v.find(x=>!isFemale(x))
       || pool[0] || v[0];
 
@@ -924,13 +929,27 @@ const TTS={
   speak(text,onEnd){
     this.stop();
     if(!this.available){this.speaking=false;if(onEnd) setTimeout(onEnd,100);return;}
-    // Always re-query to guarantee freshly loaded male voice is used
+    if(speechSynthesis.paused) speechSynthesis.resume();
+
+    // Re-query dynamically to guarantee the freshly loaded male voice is picked!
     this.voice=this.pickBestVoice() || this.voice;
     const u=new SpeechSynthesisUtterance(text);
     u.rate=TTS_CONFIG.rate;
-    u.pitch=TTS_CONFIG.pitch; // 0.84 guarantees deep, masculine narrator tone!
-    u.volume=TTS_CONFIG.volume;
-    if(this.voice) u.voice=this.voice;
+
+    // Check if chosen voice is confirmed male or needs deep pitch downshift:
+    const isConfirmedMale = this.voice && (/(male|man|boy|david|mark|guy|christopher|ryan|eric|andrew|brian|steffan|roger|george|ravi|daniel|arthur|oliver|fred|aaron|gordon|rishi|alex|evan|nathan|tom|bruce|iom|iol|rjs|gbb|enc|end|ene|afh|m01|m02)/i.test(this.voice.name + " " + this.voice.voiceURI));
+    
+    // If confirmed male, use rich male pitch (0.85). If unknown/system-default, shift deep down to 0.62 so it CANNOT sound female!
+    u.pitch = isConfirmedMale ? 0.85 : 0.62;
+    u.volume = TTS_CONFIG.volume;
+
+    if(this.voice){
+      u.voice=this.voice;
+      u.lang=this.voice.lang;
+    }else{
+      u.lang="en-US";
+    }
+
     this._onEnd=onEnd;
     u.onstart=()=>{this.speaking=true;};
     u.onend=()=>{this.speaking=false;if(this._onEnd){const cb=this._onEnd;this._onEnd=null;cb();}};
@@ -1092,9 +1111,7 @@ function playIntroLine(idx){
     if($("introGuide")) $("introGuide").classList.add("talking");
     if($("introMouth")) $("introMouth").classList.add("open");
 
-    const delay=d.pause||0;
-    introTimeout=setTimeout(()=>{
-      introTimeout=null;
+    const triggerSpeak=()=>{
       TTS.speak(d.text,()=>{
         if(avatarFrame) avatarFrame.classList.remove("talking");
         if($("introGuide")) $("introGuide").classList.remove("talking");
@@ -1107,7 +1124,14 @@ function playIntroLine(idx){
           nextIntro();
         },750);
       });
-    },delay);
+    };
+
+    const delay=d.pause||0;
+    if(delay>0){
+      introTimeout=setTimeout(()=>{ introTimeout=null; triggerSpeak(); }, delay);
+    }else{
+      triggerSpeak();
+    }
   }else{
     $("speakingIndicator").style.display="none";
     $("introReplay").style.display="none";
