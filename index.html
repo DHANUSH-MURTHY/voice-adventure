@@ -559,63 +559,67 @@ function getRms(){
   return Math.sqrt(sum/mic.dataArr.length);
 }
 
-// Process voice: returns {voiceLevel: 0-1, shouldJump: bool}
+// Process voice: returns {voiceLevel: 0-1, shouldJump: bool, jumpStrength: 0-1}
 function processVoice(dt){
   const rms=getRms();
   mic.rawRms=rms;
 
-  // Smooth RMS (responsive — 45% new signal)
-  mic.smoothRms=mic.smoothRms*.55+rms*.45;
+  // Smooth RMS (responsive — 40% new signal, 60% smooth)
+  mic.smoothRms=mic.smoothRms*.60+rms*.40;
 
   // History (keep last 30 frames ≈ 0.5s)
   mic.rmsHist.push(rms);
   if(mic.rmsHist.length>30) mic.rmsHist.shift();
 
-  // Recent average (last 15 frames)
-  const recent=mic.rmsHist.slice(-15);
+  // Recent average (last 12 frames)
+  const recent=mic.rmsHist.slice(-12);
   const recentAvg=recent.reduce((a,b)=>a+b,0)/recent.length;
 
   // Cooldowns
   if(mic.jumpCD>0) mic.jumpCD-=dt;
   if(mic.jumpHyst>0) mic.jumpHyst-=dt;
 
-  // === Movement ===
+  // === Movement (Silence -> Soft -> Normal -> Loud) ===
   const moveT=mic.moveThreshold;
-  const voiceRange=Math.max(0.01, mic.voiceNormal*1.2-moveT);
-  const rawVoice=clamp((mic.smoothRms-moveT)/voiceRange, 0, 1);
-  // Power curve: sqrt amplifies gentle voice so you don't need to shout to move
-  const voiceLevel=Math.pow(rawVoice, 0.55);
+  let voiceLevel=0;
+  if(mic.smoothRms>moveT){
+    const voiceRange=Math.max(0.015, (mic.voiceNormal||0.05)*1.35 - moveT);
+    const rawVoice=clamp((mic.smoothRms-moveT)/voiceRange, 0, 1);
+    // Smooth power curve: soft voice = slow walk, normal voice = normal run, loud = fast
+    voiceLevel=Math.pow(rawVoice, 0.70);
+  }
 
-  // === Jump Detection ===
+  // === Jump Detection (Scream Go Hero: sudden loud spike / shout) ===
   let shouldJump=false;
-  const effectiveJumpT=mic.jumpThreshold*(1+mic.jumpHyst*0.3); // hysteresis raises threshold temporarily
+  let jumpStrength=0.5;
+  const effectiveJumpT=mic.jumpThreshold*(1+mic.jumpHyst*0.25);
 
-  // Check for spike: raw RMS exceeds threshold AND is significantly above recent average
-  const isSpike=rms>effectiveJumpT && rms>recentAvg*1.7 && rms>mic.smoothRms*1.5;
+  // Detect spike: current RMS rises significantly above recent average & exceeds jump threshold
+  const isSpike=rms>effectiveJumpT && (rms>recentAvg*1.45 || rms>mic.smoothRms*1.35);
 
-  // Track rise: how many consecutive frames RMS is rising sharply
-  if(rms>mic.prevRms*1.15 && rms>effectiveJumpT*0.7){
+  // Track rise frames
+  if(rms>mic.prevRms*1.12 && rms>effectiveJumpT*0.70){
     mic.spikeFrames++;
   }else{
     mic.spikeFrames=Math.max(0,mic.spikeFrames-1);
   }
 
-  // Track sustain: how many frames above jump threshold continuously
-  if(rms>effectiveJumpT*0.8){
+  // Track sustain frames (to ensure 1 jump per sustained shout)
+  if(rms>effectiveJumpT*0.75){
     mic.sustainFrames++;
   }else{
     mic.sustainFrames=0;
   }
 
-  // Jump triggers when: spike detected, short rise (1-6 frames), not sustained too long, cooldown done
-  let jumpStrength=0.5;
-  if(isSpike && mic.spikeFrames>=1 && mic.spikeFrames<=8 && mic.sustainFrames<12 && mic.jumpCD<=0){
+  // Trigger jump: requires initial spike rise and cooldown finished, not mid-sustain
+  if(isSpike && mic.spikeFrames>=1 && mic.spikeFrames<=7 && mic.sustainFrames<10 && mic.jumpCD<=0){
     shouldJump=true;
     const delta=rms-effectiveJumpT;
     const maxDelta=Math.max(0.04,(mic.jumpPeak||0.20)-effectiveJumpT);
-    jumpStrength=clamp(delta/maxDelta,0,1);
-    mic.jumpCD=CFG.JUMP_CD;
-    mic.jumpHyst=0.35;
+    // jumpStrength between 0.15 (little hop) and 1.0 (big jump)
+    jumpStrength=clamp(0.20+(delta/maxDelta)*0.80, 0.15, 1.0);
+    mic.jumpCD=0.35; // debounce so one scream = ONE jump
+    mic.jumpHyst=0.30;
     mic.spikeFrames=0;
     mic.sustainFrames=0;
   }
@@ -1234,15 +1238,17 @@ function doJump(strength=0.5){
   if(!gameRunning||paused) return;
   const s=(typeof strength==="number" && !isNaN(strength))?clamp(strength,0,1):0.65;
   if(player.onGround){
-    const minJ=-560;
-    const maxJ=-780;
+    // Scream Go Hero: jump height scales smoothly with shout intensity
+    // Soft shout / little jump -> -450px/s; Medium -> -590px/s; Loud shout -> -730px/s
+    const minJ=-450;
+    const maxJ=-730;
     player.vy=lerp(minJ,maxJ,s);
     player.onGround=false;
     player.jumpFrame=1;
 
-    // Forward leap across the gap (like Scream Go Hero)
+    // Forward leap across the gap proportional to shout intensity
     const L=LEVELS[currentLevel]||LEVELS[0];
-    const leap=Math.max(L.speed*1.2, 270);
+    const leap=lerp(Math.max(L.speed*0.95, 200), Math.max(L.speed*1.3, 280), s);
     jumpForwardBoost=leap;
     currentSpeed=Math.max(currentSpeed, leap);
 
