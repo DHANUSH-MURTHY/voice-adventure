@@ -138,18 +138,19 @@ canvas{width:100%;height:auto;display:block;touch-action:none;background:#8ec5fc
 .toast.hidden{display:none}
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-10px)}to{opacity:1;transform:translateX(-50%)}}
 
-/* ─── Dynamic Reaction Popups (Lost & Reward) ─── */
-.game-popup{position:absolute;top:16px;right:16px;z-index:30;pointer-events:none;
-  transition:all .32s cubic-bezier(0.34, 1.56, 0.64, 1)}
-.game-popup.hidden{opacity:0;transform:scale(0.5) translateY(-25px);pointer-events:none}
+/* ─── Dynamic Reaction Popups (Lost & Reward - Centered on top of Character) ─── */
+.game-popup{position:absolute;z-index:30;pointer-events:none;
+  transform:translate(-50%, -100%);
+  transition:opacity .22s ease, transform .28s cubic-bezier(0.34, 1.56, 0.64, 1)}
+.game-popup.hidden{opacity:0;transform:translate(-50%, -80%) scale(0.5);pointer-events:none}
 .game-popup-card{display:flex;align-items:center;gap:12px;padding:8px 14px 8px 8px;border-radius:18px;
-  background:rgba(17,24,39,0.94);backdrop-filter:blur(10px);border:2px solid var(--purple);
-  box-shadow:0 12px 35px rgba(0,0,0,0.6);animation:popupBounce .35s cubic-bezier(0.34,1.56,0.64,1)}
-.game-popup.popup-lost .game-popup-card{border-color:var(--red);box-shadow:0 0 25px rgba(239,68,68,0.45)}
-.game-popup.popup-reward .game-popup-card{border-color:var(--gold);box-shadow:0 0 25px rgba(245,158,11,0.55)}
-.game-popup-card img{width:56px;height:56px;border-radius:14px;object-fit:cover;border:1.5px solid rgba(255,255,255,0.2)}
+  background:rgba(17,24,39,0.96);backdrop-filter:blur(12px);border:2px solid var(--purple);
+  box-shadow:0 12px 35px rgba(0,0,0,0.65);animation:popupBounce .35s cubic-bezier(0.34,1.56,0.64,1)}
+.game-popup.popup-lost .game-popup-card{border-color:var(--red);box-shadow:0 0 30px rgba(239,68,68,0.5)}
+.game-popup.popup-reward .game-popup-card{border-color:var(--gold);box-shadow:0 0 30px rgba(245,158,11,0.6)}
+.game-popup-card img{width:64px;height:64px;border-radius:14px;object-fit:cover;border:2px solid rgba(255,255,255,0.25)}
 .game-popup-text{font-size:15px;font-weight:900;color:#fff;white-space:nowrap}
-@keyframes popupBounce{0%{opacity:0;transform:scale(0.5) rotate(-10deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes popupBounce{0%{opacity:0;transform:scale(0.5) rotate(-6deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
 
 /* ─── Curved Roadmap ─── */
 .roadmap-wrap{position:relative;width:100%;max-width:380px;margin:14px auto;padding:12px 6px;min-height:470px;
@@ -850,7 +851,6 @@ const REWARD_IMAGES = [
   "images/reward/WhatsApp Image 2026-09-03 at 1.02.19 PM (2).jpeg"
 ];
 
-let popupTimer=null;
 function triggerReactionPopup(type, customText){
   const isLost=type==="lost";
   const pool=isLost?LOST_IMAGES:REWARD_IMAGES;
@@ -866,10 +866,16 @@ function triggerReactionPopup(type, customText){
   $("gamePopupText").textContent=text;
   pop.className="game-popup "+(isLost?"popup-lost":"popup-reward");
 
+  // Center directly on top of the game character
+  const charCenterX = ((player.x + player.w/2) / CFG.W) * 100;
+  const charTopY = Math.max(16, ((player.y - 20) / CFG.H) * 100);
+  pop.style.left = clamp(charCenterX, 22, 78) + "%";
+  pop.style.top = clamp(charTopY, 18, 75) + "%";
+
   if(popupTimer) clearTimeout(popupTimer);
   popupTimer=setTimeout(()=>{
     pop.className="game-popup hidden";
-  },1500);
+  },1600);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1209,10 +1215,11 @@ function resetPlayer(){
 
 function doJump(strength=0.5){
   if(!gameRunning||paused) return;
+  const s=(typeof strength==="number" && !isNaN(strength))?clamp(strength,0,1):0.65;
   if(player.onGround){
     const minJ=-540;
     const maxJ=-760;
-    player.vy=lerp(minJ,maxJ,strength);
+    player.vy=lerp(minJ,maxJ,s);
     player.onGround=false;
     player.jumpFrame=1;
     emitParticles(player.x+player.w/2,player.y+player.h,6,["#fbbf24","#f59e0b","#fff"]);
@@ -1221,6 +1228,11 @@ function doJump(strength=0.5){
 }
 
 function updatePlayer(dt){
+  // Safety guard against NaN
+  if(isNaN(player.y)||isNaN(player.vy)||isNaN(player.x)){
+    resetPlayer();
+  }
+
   // Gravity
   player.vy+=CFG.GRAVITY*dt;
   player.y+=player.vy*dt;
@@ -1232,12 +1244,12 @@ function updatePlayer(dt){
   if(plat){
     const targetGround=plat.y-player.h;
     // Land on top surface
-    if(player.y>=targetGround && player.vy>=0 && player.y<=targetGround+28){
+    if(player.y>=targetGround && player.vy>=0 && player.y<=targetGround+30){
       player.y=targetGround;
       player.vy=0;
       player.onGround=true;
       player.jumpFrame=0;
-    }else if(player.y>targetGround+28 && player.x+player.w>plat.x && player.x<plat.x+plat.w){
+    }else if(player.y>targetGround+30 && player.x+player.w>plat.x && player.x<plat.x+plat.w){
       // Hit platform side wall (jump wasn't high enough)
       if(player.inv<=0){
         doDamage();
@@ -1271,7 +1283,7 @@ function updatePlayer(dt){
     }
   }
 
-  // Check Spike Collisions & Overhead Hazards
+  // Check Spike Collisions & Overhead Hazards & Moving Hazards
   if(player.inv<=0){
     for(const p of platforms){
       // Ground Spikes ▲
@@ -1308,6 +1320,42 @@ function updatePlayer(dt){
             emitParticles(player.x+player.w/2,ohY+ohH,8,["#ef4444","#38bdf8","#fff"]);
             showToast("Hit overhead spikes! ⚡");
           }
+        }
+      }
+
+      // Falling Rock Hazard (with warning)
+      if(p.falling && p.falling.active){
+        const fRect={x:p.x+(p.falling.xOffset||40)-14, y:p.falling.y-14, w:28, h:28};
+        if(rectsHit(player,fRect)){
+          doDamage();
+          sfx("crush");
+          triggerReactionPopup("lost", "Falling rock! 💥");
+          emitParticles(player.x+player.w/2,player.y+player.h/2,10,["#78716c","#ef4444","#fbbf24"]);
+          showToast("Watch out for falling rocks! ⚠️");
+        }
+      }
+
+      // Flying Arrow Hazard
+      if(p.arrow){
+        const aRect={x:p.arrow.x-20, y:p.arrow.y-6, w:38, h:12};
+        if(rectsHit(player,aRect)){
+          doDamage();
+          sfx("hit");
+          triggerReactionPopup("lost", "Arrow hit! 🏹");
+          emitParticles(player.x+player.w/2,player.y+player.h/2,10,["#f97316","#ef4444","#fff"]);
+          showToast("Arrow hit! 🏹");
+        }
+      }
+
+      // Rotating Blade Hazard
+      if(p.rotating){
+        const rRect={x:p.x+(p.rotating.xOffset||50)-16, y:p.y-(p.rotating.yOffset||28)-16, w:32, h:32};
+        if(rectsHit(player,rRect)){
+          doDamage();
+          sfx("hit");
+          triggerReactionPopup("lost", "Blade! 💥");
+          emitParticles(player.x+player.w/2,player.y+player.h/2,10,["#ef4444","#38bdf8","#fff"]);
+          showToast("Rotating blade! ⚡");
         }
       }
 
@@ -1473,60 +1521,60 @@ const LEVEL_PATTERNS=[
     {w:420, y:420, gap:75},
     {w:400, y:420, gap:80}
   ],
-  // Level 1 (Sunny Meadow 🌻 — Wide platforms, gentle gaps, 3 collectible hearts, minimal single spike)
+  // Level 1 (Sunny Meadow 🌻 — Ground blocks, overhead, wide platforms, 3 hearts)
   [
     {w:360, y:420, gap:85},
     {w:320, y:420, gap:95, heart:true},
     {w:340, y:390, gap:90},
     {w:300, y:420, gap:105, heart:true},
     {w:350, y:420, gap:90, spikes:[{xOffset:160, count:1}]},
-    {w:320, y:380, gap:100, heart:true},
+    {w:320, y:380, gap:100, overhead:{y:50, xOffset:30, w:110, h:60, spikes:true}, heart:true},
     {w:330, y:420, gap:95},
     {w:310, y:420, gap:100, heart:true}
   ],
-  // Level 2 (Forest Trouble 🌲 — Medium platforms, single spikes, raised platforms, 3+ hearts)
+  // Level 2 (Forest Trouble 🌲 — + Moving up/down pillars, Falling rocks with ⚠️ warning, 3 hearts)
   [
     {w:260, y:420, gap:115, spikes:[{xOffset:120, count:1}]},
-    {w:230, y:360, gap:120, heart:true},
-    {w:250, y:420, gap:115, spikes:[{xOffset:110, count:1}]},
+    {w:230, y:360, gap:120, moving:true, movingRange:42, moveSpeed:2.2, heart:true},
+    {w:250, y:420, gap:115, falling:true, fallingX:60},
     {w:220, y:370, gap:125, heart:true},
-    {w:260, y:420, gap:120, spikes:[{xOffset:130, count:1}]},
-    {w:230, y:360, gap:130, heart:true},
+    {w:260, y:420, gap:120, moving:true, movingRange:38, moveSpeed:2.0, spikes:[{xOffset:130, count:1}]},
+    {w:230, y:360, gap:130, falling:true, fallingX:50, heart:true},
     {w:250, y:420, gap:120, spikes:[{xOffset:100, count:1}], heart:true},
     {w:240, y:380, gap:125}
   ],
-  // Level 3 (Arrow Alley 🏹 — Precision: narrower platforms, double spikes, overhead ceiling hazards)
+  // Level 3 (Arrow Alley 🏹 — + Flying Arrows, Rotating blades, overhead ceiling blocks)
   [
-    {w:210, y:420, gap:135, spikes:[{xOffset:90, count:2}]},
-    {w:180, y:350, gap:140},
+    {w:210, y:420, gap:135, arrow:true, arrowY:350, spikes:[{xOffset:90, count:2}]},
+    {w:180, y:350, gap:140, rotating:true, rotX:90, rotY:28},
     {w:190, y:420, gap:145, overhead:{y:50, xOffset:30, w:120, h:65, spikes:true}},
-    {w:170, y:340, gap:140, spikes:[{xOffset:70, count:1}]},
-    {w:200, y:420, gap:145, spikes:[{xOffset:85, count:2}]},
+    {w:170, y:340, gap:140, arrow:true, arrowY:340, spikes:[{xOffset:70, count:1}]},
+    {w:200, y:420, gap:145, rotating:true, rotX:100, rotY:28, spikes:[{xOffset:40, count:2}]},
     {w:180, y:360, gap:140},
     {w:190, y:420, gap:150, overhead:{y:55, xOffset:25, w:130, h:60, spikes:true}},
-    {w:170, y:350, gap:140, spikes:[{xOffset:65, count:2}]}
+    {w:170, y:350, gap:140, arrow:true, arrowY:350, spikes:[{xOffset:65, count:2}]}
   ],
-  // Level 4 (Chaos Canyon ⚡ — Narrow platforms, wide gaps, spike combinations, low ceilings)
+  // Level 4 (Chaos Canyon ⚡ — All types combined: Moving, Falling, Arrows, Rotating, Overhead)
   [
-    {w:160, y:420, gap:160, spikes:[{xOffset:55, count:2}]},
-    {w:140, y:340, gap:165, overhead:{y:45, xOffset:15, w:105, h:70, spikes:true}},
-    {w:150, y:420, gap:160, spikes:[{xOffset:40, count:3}]},
-    {w:130, y:320, gap:170},
-    {w:160, y:430, gap:160, spikes:[{xOffset:50, count:2}], overhead:{y:40, xOffset:20, w:110, h:70, spikes:true}},
-    {w:140, y:350, gap:170},
-    {w:150, y:420, gap:165, spikes:[{xOffset:45, count:3}]},
-    {w:135, y:330, gap:170, overhead:{y:50, xOffset:15, w:95, h:70, spikes:true}}
+    {w:160, y:420, gap:160, moving:true, movingRange:45, moveSpeed:2.5, spikes:[{xOffset:55, count:2}]},
+    {w:140, y:340, gap:165, falling:true, fallingX:40, overhead:{y:45, xOffset:15, w:105, h:70, spikes:true}},
+    {w:150, y:420, gap:160, arrow:true, arrowY:350, spikes:[{xOffset:40, count:3}]},
+    {w:130, y:320, gap:170, rotating:true, rotX:65, rotY:28},
+    {w:160, y:430, gap:160, moving:true, movingRange:40, moveSpeed:2.4, spikes:[{xOffset:50, count:2}], overhead:{y:40, xOffset:20, w:110, h:70, spikes:true}},
+    {w:140, y:350, gap:170, falling:true, fallingX:45},
+    {w:150, y:420, gap:165, arrow:true, arrowY:340, spikes:[{xOffset:45, count:3}]},
+    {w:135, y:330, gap:170, rotating:true, rotX:65, rotY:28, overhead:{y:50, xOffset:15, w:95, h:70, spikes:true}}
   ],
-  // Level 5 (Final Battlefield 🔥 — Arcade challenge: narrow pillars, large gaps, spikes, high/low variation)
+  // Level 5 (Final Battlefield 🔥 — Everything combined, tighter timing, fastest intensity)
   [
-    {w:130, y:420, gap:175, spikes:[{xOffset:35, count:2}]},
-    {w:120, y:330, gap:180, overhead:{y:35, xOffset:15, w:90, h:80, spikes:true}},
-    {w:115, y:430, gap:185, spikes:[{xOffset:30, count:2}]},
-    {w:125, y:310, gap:175},
-    {w:130, y:420, gap:185, spikes:[{xOffset:30, count:3}], overhead:{y:40, xOffset:20, w:85, h:75, spikes:true}},
-    {w:115, y:340, gap:180},
-    {w:125, y:440, gap:185, spikes:[{xOffset:35, count:2}]},
-    {w:120, y:320, gap:180, overhead:{y:35, xOffset:15, w:85, h:80, spikes:true}}
+    {w:130, y:420, gap:175, moving:true, movingRange:48, moveSpeed:2.8, spikes:[{xOffset:35, count:2}]},
+    {w:120, y:330, gap:180, falling:true, fallingX:35, overhead:{y:35, xOffset:15, w:90, h:80, spikes:true}},
+    {w:115, y:430, gap:185, arrow:true, arrowY:350, spikes:[{xOffset:30, count:2}]},
+    {w:125, y:310, gap:175, rotating:true, rotX:60, rotY:26},
+    {w:130, y:420, gap:185, moving:true, movingRange:45, moveSpeed:2.7, spikes:[{xOffset:30, count:3}], overhead:{y:40, xOffset:20, w:85, h:75, spikes:true}},
+    {w:115, y:340, gap:180, falling:true, fallingX:35},
+    {w:125, y:440, gap:185, arrow:true, arrowY:340, spikes:[{xOffset:35, count:2}]},
+    {w:120, y:320, gap:180, rotating:true, rotX:60, rotY:26, overhead:{y:35, xOffset:15, w:85, h:80, spikes:true}}
   ]
 ];
 
@@ -1534,7 +1582,7 @@ function resetPlatforms(){
   platforms=[];
   patternIdx=0;
   let curX=0;
-  const startPlat={x:0, w:380, y:CFG.GROUND, spikes:[], overhead:null, heart:false, flag:false};
+  const startPlat={x:0, w:380, y:CFG.GROUND, baseY:CFG.GROUND, spikes:[], overhead:null, heart:false, flag:false};
   platforms.push(startPlat);
   curX+=startPlat.w;
   while(curX<CFG.W+800){
@@ -1552,7 +1600,7 @@ function appendNextPatternPlatform(startX){
   const L=LEVELS[currentLevel];
 
   if(platX>=L.dist-400 && !platforms.some(p=>p.flag)){
-    const finishPlat={x:platX, w:550, y:CFG.GROUND, spikes:[], overhead:null, heart:false, flag:true};
+    const finishPlat={x:platX, w:550, y:CFG.GROUND, baseY:CFG.GROUND, spikes:[], overhead:null, heart:false, flag:true};
     platforms.push(finishPlat);
     return platX+finishPlat.w;
   }
@@ -1561,6 +1609,14 @@ function appendNextPatternPlatform(startX){
     x:platX,
     w:pSpec.w||200,
     y:pSpec.y||CFG.GROUND,
+    baseY:pSpec.y||CFG.GROUND,
+    moving:pSpec.moving||false,
+    moveRange:pSpec.movingRange||42,
+    moveSpeed:pSpec.moveSpeed||2.2,
+    movePhase:pSpec.movePhase||Math.random()*Math.PI*2,
+    falling:pSpec.falling?{y:45, speed:340, active:false, xOffset:pSpec.fallingX||45}:null,
+    arrow:pSpec.arrow?{x:platX+320, y:(pSpec.arrowY||340), speed:220}:null,
+    rotating:pSpec.rotating?{xOffset:(pSpec.rotX||pSpec.w/2), yOffset:(pSpec.rotY||28), angle:0}:null,
     spikes:pSpec.spikes||[],
     overhead:pSpec.overhead||null,
     heart:pSpec.heart||false,
@@ -1572,10 +1628,37 @@ function appendNextPatternPlatform(startX){
 }
 
 function updatePlatforms(dt){
+  const time=performance.now()/1000;
   for(const p of platforms){
     p.x-=currentSpeed*dt;
+
+    // 1. Up/Down Moving Platforms
+    if(p.moving){
+      p.y=p.baseY + Math.sin(time*p.moveSpeed + p.movePhase) * p.moveRange;
+    }
+
+    // 2. Falling Rock with Warning ⚠️
+    if(p.falling){
+      const dist=p.x-player.x;
+      if(dist<260 && dist>-60){
+        p.falling.active=true;
+      }
+      if(p.falling.active && p.falling.y < p.y-24){
+        p.falling.y+=p.falling.speed*dt;
+      }
+    }
+
+    // 3. Flying Arrow
+    if(p.arrow){
+      p.arrow.x-=(currentSpeed + p.arrow.speed)*dt;
+    }
+
+    // 4. Rotating Blade
+    if(p.rotating){
+      p.rotating.angle+=dt*7.5;
+    }
   }
-  platforms=platforms.filter(p=>p.x+p.w>-200);
+  platforms=platforms.filter(p=>p.x+p.w>-300);
 
   const lastP=platforms[platforms.length-1];
   if(lastP && lastP.x<CFG.W+600){
@@ -1685,6 +1768,71 @@ function drawPlatforms(ctx, levelIdx){
           }
         }
       }
+    }
+
+    // 6. Up/Down Indicator for Moving Platforms
+    if(p.moving){
+      ctx.fillStyle="rgba(255,255,255,0.4)";
+      ctx.font="bold 13px sans-serif";
+      ctx.fillText("↕", p.x+p.w/2-6, p.y+22);
+    }
+
+    // 7. Falling Rock Hazard with Warning ⚠️
+    if(p.falling){
+      const fx=p.x+p.falling.xOffset;
+      const fy=p.falling.y;
+      if(!p.falling.active || p.falling.y < p.y-90){
+        const blink=Math.sin(performance.now()/120)>0;
+        ctx.fillStyle=blink?"#ef4444":"#fbbf24";
+        ctx.font="bold 16px sans-serif";
+        ctx.fillText("⚠️", fx-8, 30);
+      }
+      ctx.fillStyle="#78716c";
+      ctx.beginPath();
+      ctx.roundRect(fx-14, fy-14, 28, 28, 6);
+      ctx.fill();
+      ctx.strokeStyle="#ea580c";
+      ctx.lineWidth=2;
+      ctx.stroke();
+    }
+
+    // 8. Flying Arrow
+    if(p.arrow && p.arrow.x>-60 && p.arrow.x<CFG.W+120){
+      const ax=p.arrow.x, ay=p.arrow.y;
+      ctx.fillStyle="#f97316";
+      ctx.fillRect(ax-18, ay-3, 28, 6);
+      ctx.beginPath();
+      ctx.moveTo(ax-22, ay);
+      ctx.lineTo(ax-12, ay-7);
+      ctx.lineTo(ax-12, ay+7);
+      ctx.fill();
+      ctx.fillStyle="rgba(249,115,22,0.45)";
+      ctx.fillRect(ax+10, ay-2, 14, 4);
+    }
+
+    // 9. Rotating Blade
+    if(p.rotating){
+      const rx=p.x+p.rotating.xOffset;
+      const ry=p.y-p.rotating.yOffset;
+      ctx.save();
+      ctx.translate(rx, ry);
+      ctx.rotate(p.rotating.angle);
+      ctx.fillStyle="#94a3b8";
+      ctx.strokeStyle="#ef4444";
+      ctx.lineWidth=1.8;
+      for(let a=0;a<4;a++){
+        ctx.rotate(Math.PI/2);
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.lineTo(-6,-16);
+        ctx.lineTo(0,-20);
+        ctx.lineTo(6,-16);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.fillStyle="#dc2626";
+      ctx.beginPath(); ctx.arc(0,0,5,0,Math.PI*2); ctx.fill();
+      ctx.restore();
     }
 
     ctx.restore();
@@ -2221,7 +2369,7 @@ $("ovBtn").addEventListener("click",()=>{
 });
 
 // Jump buttons
-$("jumpBtn").addEventListener("click",doJump);
+$("jumpBtn").addEventListener("click",()=>{ doJump(0.65); });
 
 // BGM Toggle
 $("bgmBtn").addEventListener("click",()=>{
