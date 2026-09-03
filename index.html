@@ -116,22 +116,27 @@ p{color:var(--text2);line-height:1.55;margin-bottom:10px;font-size:clamp(14px,3.
 .meter-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);font-weight:700;padding:0 2px}
 .mic-status{font-size:13px;color:var(--text3);text-align:center;margin:8px 0;min-height:20px}
 
-/* ─── Game Screen ─── */
-.hud{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
-.hud-item{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 12px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:5px;white-space:nowrap}
+/* ─── Game Screen (Mobile Full Screen Optimized) ─── */
+#gameScreen{display:none;flex-direction:column;flex:1;min-height:0}
+#gameScreen.active{display:flex}
+.hud{display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+.hud-item{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 12px;font-size:13px;font-weight:800;display:flex;align-items:center;gap:5px;white-space:nowrap}
 .hud-hearts{color:var(--red);letter-spacing:2px}
 .hud-item.grow{flex:1}
-.canvas-wrap{position:relative;border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;border:1px solid var(--border)}
-canvas{width:100%;height:auto;display:block;touch-action:none;background:#8ec5fc}
+.canvas-wrap{position:relative;border-radius:var(--r-md);overflow:hidden;margin-bottom:6px;border:1px solid var(--border);flex:1;display:flex;align-items:center;justify-content:center;background:#050811}
+canvas{width:100%;height:auto;max-height:68vh;display:block;touch-action:none;background:#8ec5fc;aspect-ratio:900/500}
 .game-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,14,26,.85);z-index:5}
 .game-overlay.hidden{display:none}
 .overlay-card{max-width:360px;width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:fadeUp .35s ease}
 .overlay-big{font-size:clamp(28px,7vw,42px);font-weight:1000;margin-bottom:8px}
-.game-btns{display:flex;gap:8px;margin-top:8px}
-.game-btns .btn{flex:1}
+.btn-jump{width:100%;min-height:52px;font-size:18px;font-weight:900;letter-spacing:0.5px;
+  background:linear-gradient(135deg,var(--purple),var(--pink));
+  border-radius:var(--r-md);box-shadow:0 8px 25px rgba(139,92,246,.35);
+  display:flex;align-items:center;justify-content:center;cursor:pointer}
+.btn-jump:active{transform:scale(.97);box-shadow:0 3px 12px rgba(139,92,246,.5)}
 .game-voice{margin-top:6px}
 .game-voice-label{font-size:12px;color:var(--text3);font-weight:700;margin-bottom:3px;display:flex;align-items:center;gap:4px}
-.game-tip{font-size:12px;color:var(--text3);text-align:center;margin-top:6px}
+.game-tip{font-size:12px;color:var(--text3);text-align:center;margin-top:4px}
 .toast{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(17,24,39,.9);
   border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 16px;font-size:14px;font-weight:700;
   z-index:6;animation:toastIn .3s ease;pointer-events:none;white-space:nowrap}
@@ -209,13 +214,17 @@ canvas{width:100%;height:auto;display:block;touch-action:none;background:#8ec5fc
 #introStartWrap h2{background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 #introDialogueWrap{gap:6px}
 
-/* ─── Responsive ─── */
-@media(max-width:420px){
-  #app{padding:6px 6px 20px}
+/* ─── Responsive (Mobile Full Screen) ─── */
+@media(max-width:600px){
+  #app{padding:4px 6px 12px;width:100%;max-width:100%;min-height:100dvh}
+  header{padding:4px 2px 6px}
   .card{padding:14px}
   .overlay-card{padding:18px}
-  .hud{gap:5px}
+  .hud{gap:4px;margin-bottom:4px}
   .hud-item{padding:5px 8px;font-size:12px}
+  .canvas-wrap{margin-bottom:4px;border-radius:12px}
+  canvas{max-height:62vh}
+  .btn-jump{min-height:48px;font-size:17px}
 }
 </style>
 </head>
@@ -360,18 +369,14 @@ canvas{width:100%;height:auto;display:block;touch-action:none;background:#8ec5fc
     </div>
     <div class="toast hidden" id="gameToast">Nice! 🎉</div>
   </div>
-  <div class="game-btns">
-    <button class="btn btn-ghost btn-sm" id="jumpBtn">⬆ Jump</button>
-    <button class="btn btn-ghost btn-sm" id="pauseBtn">⏸ Pause</button>
-    <button class="btn btn-ghost btn-sm" id="bgmBtn">🎵 BGM: On</button>
-    <button class="btn btn-ghost btn-sm" id="skipBtn" style="display:none">Skip → Level 1</button>
-    <button class="btn btn-ghost btn-sm" id="quitBtn">✕ Quit</button>
+  <div class="game-action-wrap" style="margin-top:6px;">
+    <button class="btn btn-jump" id="jumpBtn">⬆ JUMP</button>
   </div>
   <div class="game-voice">
     <div class="game-voice-label">🎙 <span id="voiceLabel">Voice power</span></div>
     <div class="voice-meter"><div class="voice-meter-fill" id="gameMeter"></div></div>
   </div>
-  <p class="game-tip">Gentle sound = move forward • Short loud sound = jump • Space key works too</p>
+  <p class="game-tip">Gentle voice = run • Quick loud sound ("HA!") or tap JUMP</p>
 </section>
 
 <!-- ═══ MAP / ROADMAP SCREEN ═══ -->
@@ -1213,15 +1218,24 @@ function resetPlayer(){
   player.runCycle=0; player.jumpFrame=0;
 }
 
+let jumpForwardBoost=0;
+
 function doJump(strength=0.5){
   if(!gameRunning||paused) return;
   const s=(typeof strength==="number" && !isNaN(strength))?clamp(strength,0,1):0.65;
   if(player.onGround){
-    const minJ=-540;
-    const maxJ=-760;
+    const minJ=-560;
+    const maxJ=-780;
     player.vy=lerp(minJ,maxJ,s);
     player.onGround=false;
     player.jumpFrame=1;
+
+    // Forward leap across the gap (like Scream Go Hero)
+    const L=LEVELS[currentLevel]||LEVELS[0];
+    const leap=Math.max(L.speed*1.2, 270);
+    jumpForwardBoost=leap;
+    currentSpeed=Math.max(currentSpeed, leap);
+
     emitParticles(player.x+player.w/2,player.y+player.h,6,["#fbbf24","#f59e0b","#fff"]);
     sfx("jump");
   }
@@ -1257,29 +1271,38 @@ function updatePlayer(dt){
         triggerReactionPopup("lost", "Wall hit! 💥");
         showToast("Hit platform wall! 💥");
       }
-      player.vy=Math.max(120, player.vy); // fall downward
+      player.vy=Math.max(140, player.vy); // fall downward into pit
     }
   }else{
     // Over a pit/gap between platforms!
     player.onGround=false;
   }
 
-  // Check if player fell into pit below screen
-  if(player.y>CFG.H-10){
-    sfx("crush");
-    doDamage();
-    triggerReactionPopup("lost", "Fell into pit! 💥");
-    emitParticles(player.x+player.w/2,CFG.H-20,12,["#ef4444","#f97316","#374151"],1.3);
-    showToast("Fell into pit! 💥");
+  // Check if player fell into pit
+  if(player.y > CFG.H - 45 || player.y > (plat ? plat.y + 50 : 435)){
+    if(player.vy > 0 && player.y > 400){
+      sfx("crush");
+      doDamage(true); // force damage: lives-- and updateHUD()
+      triggerReactionPopup("lost", "Fell into pit! 💥");
+      emitParticles(player.x+player.w/2,CFG.H-20,14,["#ef4444","#f97316","#374151"],1.3);
+      showToast("Fell into pit! 💥");
 
-    // Respawn safely on nearest platform to left or start platform
-    const prevPlat=[...platforms].filter(p=>p.x<player.x+60 && p.x+p.w>20).pop()||platforms[0];
-    if(prevPlat){
-      player.x=clamp(prevPlat.x+25, 60, CFG.W/3);
-      player.y=prevPlat.y-player.h;
-      player.vy=0;
-      player.onGround=true;
-      player.inv=CFG.INVULN*1.2;
+      if(lives>0){
+        // Find safe platform to respawn on solid ground
+        let safePlat=platforms.find(p=>p.x+p.w>=130 && p.x<=CFG.W-60);
+        if(!safePlat) safePlat=platforms.find(p=>p.x>-60 && p.x+p.w>60);
+        if(!safePlat) safePlat=platforms[0];
+
+        if(safePlat){
+          player.x=clamp(safePlat.x+Math.min(45,safePlat.w/2), 70, 200);
+          player.y=safePlat.y-player.h;
+          player.vy=0;
+          player.onGround=true;
+          player.jumpFrame=0;
+          player.inv=CFG.INVULN*1.5;
+          currentSpeed=Math.max(currentSpeed, 120);
+        }
+      }
     }
   }
 
@@ -1842,8 +1865,8 @@ function drawPlatforms(ctx, levelIdx){
 // ═══════════════════════════════════════════════════════════
 // DAMAGE / LIFE SYSTEM
 // ═══════════════════════════════════════════════════════════
-function doDamage(){
-  if(player.inv>0) return;
+function doDamage(force=false){
+  if(!force && player.inv>0) return;
   lives--;
   player.inv=CFG.INVULN;
   emitParticles(player.x+player.w/2, player.y+player.h/2, 10, ["#ef4444","#fbbf24","#fff"], 1.2);
@@ -2031,7 +2054,7 @@ function startLevel(idx){
   showScreen("gameScreen");
   updateHUD();
 
-  $("skipBtn").style.display=idx===0?"":"none";
+  if($("skipBtn")) $("skipBtn").style.display=idx===0?"":"none";
 
   if(idx===0){
     showGameOverlay("Warm-up Ground 🏋️","Your guide will teach you the controls. Gentle voice = move. Quick loud sound = jump!","Start warm-up");
@@ -2233,7 +2256,15 @@ function update(dt){
   }else{
     currentSpeed=lerp(currentSpeed,targetSpeed,CFG.DECEL*dt);
   }
-  if(currentSpeed<5) currentSpeed=0;
+
+  // Airborne leap momentum: Maintain forward speed across the gap!
+  if(!player.onGround){
+    const minAirSpeed=Math.max(jumpForwardBoost, (L?L.speed:180)*0.95);
+    currentSpeed=Math.max(currentSpeed, minAirSpeed);
+  }else{
+    jumpForwardBoost=0;
+    if(currentSpeed<5) currentSpeed=0;
+  }
   currentSpeed=Math.min(currentSpeed,CFG.MAX_SPEED);
 
   // Jump from voice with loudness-dependent jump strength
@@ -2368,49 +2399,10 @@ $("ovBtn").addEventListener("click",()=>{
   BGM.start();
 });
 
-// Jump buttons
-$("jumpBtn").addEventListener("click",()=>{ doJump(0.65); });
-
-// BGM Toggle
-$("bgmBtn").addEventListener("click",()=>{
-  sfx("click");
-  const muted=BGM.toggleMute();
-  $("bgmBtn").textContent=muted?"🎵 BGM: Off":"🎵 BGM: On";
-});
-
-// Skip warm-up → go straight to Level 1
-$("skipBtn").addEventListener("click",()=>{
-  sfx("click");
-  gameRunning=false;
-  state="PLAYING";
-  startLevel(1);
-});
-
-// Pause
-$("pauseBtn").addEventListener("click",()=>{
-  if(!gameRunning) return;
-  paused=!paused;
-  $("pauseBtn").textContent=paused?"▶ Resume":"⏸ Pause";
-  if(paused){
-    showGameOverlay("Paused","Take a breath. Resume when you're ready.","Resume");
-    state="PAUSED";
-  }else{
-    hideGameOverlay();
-    state=currentLevel===0?"TRAINING":"PLAYING";
-  }
-});
-
-// Quit
-$("quitBtn").addEventListener("click",()=>{
-  TTS.stop();
-  gameRunning=false;
-  state="INTRO";
-  introIdx=-1;
-  introStarted=false;
-  showScreen("introScreen");
-  $("introStartWrap").style.display="";
-  $("introDialogueWrap").style.display="none";
-});
+// Jump button
+if($("jumpBtn")){
+  $("jumpBtn").addEventListener("click",()=>{ doJump(0.65); });
+}
 
 // Map next button
 $("mapNextBtn").addEventListener("click",()=>{
@@ -2443,10 +2435,7 @@ $("playAgainBtn").addEventListener("click",()=>{
 window.addEventListener("keydown",e=>{
   if(e.code==="Space"){
     e.preventDefault();
-    if(state==="PLAYING"||state==="TRAINING") doJump();
-  }
-  if(e.code==="KeyP"&&gameRunning){
-    $("pauseBtn").click();
+    if(state==="PLAYING"||state==="TRAINING") doJump(0.65);
   }
   if(e.code==="Enter"){
     if(state==="INTRO"&&introStarted) nextIntro();
@@ -2455,10 +2444,10 @@ window.addEventListener("keydown",e=>{
   }
 });
 
-// Handle page visibility (pause when hidden)
+// Handle page visibility
 document.addEventListener("visibilitychange",()=>{
-  if(document.hidden && gameRunning && !paused){
-    $("pauseBtn").click();
+  if(document.hidden && gameRunning){
+    paused=true;
   }
 });
 
