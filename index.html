@@ -547,28 +547,30 @@ const mic={
 
 async function enableMic(){
   try{
-    if(!navigator.mediaDevices) navigator.mediaDevices={};
-    if(!navigator.mediaDevices.getUserMedia){
-      const legacy=navigator.getUserMedia||navigator.webkitGetUserMedia||navigator.mozGetUserMedia;
-      if(legacy){
-        navigator.mediaDevices.getUserMedia=(c)=>new Promise((res,rej)=>legacy.call(navigator,c,res,rej));
+    let stream=null;
+
+    // Direct invocation without modifying host navigator object
+    if(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia==="function"){
+      try{
+        // Standard mobile-friendly constraint: { audio: true } reliably triggers permission prompt on iOS & Android
+        stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      }catch(errSimple){
+        console.warn("Simple audio constraint failed, retrying with advanced constraints:", errSimple);
+        stream=await navigator.mediaDevices.getUserMedia({
+          audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}
+        });
+      }
+    }else{
+      const legacy=navigator.getUserMedia||navigator.webkitGetUserMedia||navigator.mozGetUserMedia||navigator.msGetUserMedia;
+      if(typeof legacy==="function"){
+        stream=await new Promise((resolve,reject)=>{
+          legacy.call(navigator,{audio:true},resolve,reject);
+        });
       }
     }
-    if(!navigator.mediaDevices.getUserMedia){
-      console.warn("getUserMedia API unavailable on this browser");
-      return false;
-    }
 
-    // Attempt 1: Advanced constraints (echo cancellation, noise suppression)
-    // Attempt 2 (Mobile Fallback): Simple {audio: true} for iOS Safari & Android Chrome compatibility
-    let stream=null;
-    try{
-      stream=await navigator.mediaDevices.getUserMedia({
-        audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}
-      });
-    }catch(errConstraint){
-      console.warn("Retrying with simple {audio:true} for mobile device:", errConstraint);
-      stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    if(!stream){
+      throw new Error("Microphone API not supported on this browser context");
     }
 
     mic.stream=stream;
@@ -593,10 +595,20 @@ async function enableMic(){
     }
     return true;
   }catch(e){
-    console.warn("Mic access error:", e);
+    console.error("Mic access error:", e);
     if($("micToggleBtn")){
       $("micToggleBtn").textContent="🎙️ Tap to Turn On Mic";
       $("micToggleBtn").style.color="var(--gold)";
+    }
+    // Update calibration screen status if user is currently there
+    if($("calibStatus")){
+      if(e.name==="NotAllowedError"||e.name==="PermissionDeniedError"){
+        $("calibStatus").innerHTML="Microphone access was blocked.<br><span style='color:var(--gold);font-weight:700'>Tap 🔒 or site settings in your phone URL bar to Allow Mic, then tap Try Again!</span>";
+      }else if(e.name==="NotFoundError"||e.name==="DevicesNotFoundError"){
+        $("calibStatus").textContent="No microphone hardware detected on this device.";
+      }else{
+        $("calibStatus").innerHTML="Microphone access needed.<br><span style='color:var(--gold)'>Tip: In browser address bar, tap 🔒 or 'AA' to Allow Microphone, then tap Try Again!</span>";
+      }
     }
     return false;
   }
@@ -1119,7 +1131,9 @@ async function startCalibration(){
 
   const ok=await enableMic();
   if(!ok){
-    $("calibStatus").textContent="Microphone not available — no worries! You can use the Jump button and Space key. 😊";
+    if(!$("calibStatus").innerHTML.includes("Allow Mic") && !$("calibStatus").innerHTML.includes("hardware")){
+      $("calibStatus").innerHTML="Microphone access is needed for voice control.<br><span style='color:var(--gold);font-weight:700'>Tap 🔒 or 'AA' in your browser address bar to Allow Microphone, then tap Try Again!</span>";
+    }
     $("calibStartBtn").textContent="🎙 Try Again";
     $("calibStartBtn").disabled=false;
     $("calibDoneBtn").disabled=false;
