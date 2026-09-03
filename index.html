@@ -399,8 +399,8 @@ canvas{width:100%;height:auto;max-height:68vh;display:block;touch-action:none;ba
     <button class="btn btn-gold btn-sm" id="warmupSkipBtn" style="display:none">⚡ Skip Warm-up → Start Level 1</button>
   </div>
 
-  <!-- Voice Listening Bar -->
-  <div class="game-voice" style="margin-top:6px;">
+  <!-- Voice Listening Bar: Visible ONLY in Voice Mode -->
+  <div class="game-voice" id="gameVoiceWrap" style="margin-top:6px;">
     <div class="game-voice-label" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
       <span>🎙 <span id="voiceLabel">Voice power</span></span>
     </div>
@@ -2637,6 +2637,8 @@ function updateControlModeUI(){
   const btn=$("controlModeBtn");
   const label=$("controlModeText");
   const actionWrap=$("joystickActionWrap");
+  const voiceWrap=$("gameVoiceWrap");
+  const micBtn=$("micToggleBtn");
   const tip=$("gameTip");
 
   if(controlMode==='voice'){
@@ -2647,6 +2649,8 @@ function updateControlModeUI(){
       btn.title="Switch to Joystick Mode 🕹️";
     }
     if(actionWrap) actionWrap.style.display="none"; // Absolutely NO JUMP / RUN BUTTON in voice play!
+    if(voiceWrap) voiceWrap.style.display="block";   // Show voice bar in voice mode!
+    if(micBtn) micBtn.style.display="inline-block";
     if(tip) tip.textContent="Gentle voice = run • Quick loud shout = jump • Shout mid-air to multi-jump!";
   }else{
     if(label) label.textContent="🕹️ Joystick Mode";
@@ -2656,6 +2660,8 @@ function updateControlModeUI(){
       btn.title="Switch to Voice Mode 🎤";
     }
     if(actionWrap) actionWrap.style.display="flex"; // Show jump & run buttons in joystick play!
+    if(voiceWrap) voiceWrap.style.display="none";  // HIDE voice bar in joystick mode!
+    if(micBtn) micBtn.style.display="none";
     if(tip) tip.textContent="Hold RUN ▶ to move forward • Tap JUMP ⬆ to leap forward • Mid-air jumps continue forward!";
   }
 }
