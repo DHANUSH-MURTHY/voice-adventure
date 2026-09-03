@@ -926,11 +926,16 @@ const TTS={
   speak(text,onEnd){
     this.stop();
     if(!this.available){this.speaking=false;if(onEnd) setTimeout(onEnd,100);return;}
+    
+    // Clear any stuck paused state
     if(speechSynthesis.paused) speechSynthesis.resume();
 
     // Re-query dynamically to guarantee the freshly loaded male voice is picked!
     this.voice=this.pickBestVoice() || this.voice;
-    const u=new SpeechSynthesisUtterance(text);
+    
+    // CRITICAL: Store utterance in `this` to prevent Android Chrome Garbage Collection bug!
+    this._utterance = new SpeechSynthesisUtterance(text);
+    const u = this._utterance;
     
     // Natural rate and pitch to avoid robotic distortion
     u.rate=TTS_CONFIG.rate;
@@ -947,12 +952,18 @@ const TTS={
     this._onEnd=onEnd;
     u.onstart=()=>{this.speaking=true;};
     u.onend=()=>{this.speaking=false;if(this._onEnd){const cb=this._onEnd;this._onEnd=null;cb();}};
-    u.onerror=()=>{this.speaking=false;if(this._onEnd){const cb=this._onEnd;this._onEnd=null;cb();}};
+    u.onerror=(e)=>{console.log("TTS Error",e);this.speaking=false;if(this._onEnd){const cb=this._onEnd;this._onEnd=null;cb();}};
+    
+    // Small timeout zero can sometimes help flush the cancel state on Android, 
+    // but risks losing user gesture on strict iOS.
     speechSynthesis.speak(u);
   },
 
   stop(){
-    if(this.available) speechSynthesis.cancel();
+    // Only cancel if actually speaking or pending, to avoid breaking the TTS engine state
+    if(this.available && (speechSynthesis.speaking || speechSynthesis.pending)){
+      speechSynthesis.cancel();
+    }
     this.speaking=false;
     this._onEnd=null;
   }
