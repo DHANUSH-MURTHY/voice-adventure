@@ -371,7 +371,26 @@ canvas{width:100%;height:auto;max-height:68vh;display:block;touch-action:none;ba
     </div>
     <div class="toast hidden" id="gameToast">Nice! 🎉</div>
   </div>
-  <!-- Joystick / Touch Action Controls: HIDDEN by default in Voice Play; only shown when user switches to Joystick mode -->
+  <!-- Controls Top Row: Circular Switch Button on the LEFT side (right above listening bar / directly on top of RUN button) -->
+  <div class="controls-top-row" style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;padding:0 2px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <!-- Circular Switch Button with Round Arrow Symbol -->
+      <button id="controlModeBtn" class="circle-mode-btn" title="Switch Voice / Joystick" style="width:38px;height:38px;min-width:38px;border-radius:50%;border:2px solid var(--purple);background:var(--purple-d);color:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,0.3);transition:transform .15s ease, background .2s ease;padding:0;touch-action:manipulation;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+          <path d="M3 3v5h5"/>
+          <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+          <path d="M21 21v-5h-5"/>
+        </svg>
+      </button>
+      <span id="controlModeText" style="font-size:12px;font-weight:800;color:var(--purple);">🎤 Voice Only</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <button id="micToggleBtn" class="badge" style="cursor:pointer;border:none;background:var(--card2);color:var(--gold);font-weight:800;padding:4px 10px;border-radius:999px;font-size:11px;">🎙️ Tap Mic</button>
+    </div>
+  </div>
+
+  <!-- Joystick / Touch Action Controls: Visible only in Joystick mode, right below the circular button so it sits right on top of RUN button -->
   <div class="game-action-wrap" id="joystickActionWrap" style="margin-top:6px;display:none;flex-direction:column;gap:6px;">
     <div style="display:flex;gap:6px;">
       <button class="btn" id="runBtn" style="flex:1;min-height:48px;font-size:16px;font-weight:900;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:var(--r-md);box-shadow:0 6px 18px rgba(34,197,94,.35);letter-spacing:.5px;touch-action:manipulation;">▶ RUN</button>
@@ -379,24 +398,11 @@ canvas{width:100%;height:auto;max-height:68vh;display:block;touch-action:none;ba
     </div>
     <button class="btn btn-gold btn-sm" id="warmupSkipBtn" style="display:none">⚡ Skip Warm-up → Start Level 1</button>
   </div>
-  <div class="game-voice">
-    <div class="game-voice-label" style="display:flex;justify-content:space-between;align-items:center;">
+
+  <!-- Voice Listening Bar -->
+  <div class="game-voice" style="margin-top:6px;">
+    <div class="game-voice-label" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
       <span>🎙 <span id="voiceLabel">Voice power</span></span>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <!-- Clean Control Switcher with Round Arrow Mark Symbol (🔄) -->
-        <button id="controlModeBtn" class="badge" title="Switch between Voice and Joystick mode" style="cursor:pointer;border:1px solid rgba(255,255,255,0.18);background:var(--purple-d);color:var(--purple);font-weight:800;padding:4px 11px;border-radius:999px;font-size:11px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;transition:all .2s ease;">
-          <span class="round-arrow-icon" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.18);">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-              <path d="M3 3v5h5"/>
-              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
-              <path d="M21 21v-5h-5"/>
-            </svg>
-          </span>
-          <span id="controlModeText">Switch to Joystick 🕹️</span>
-        </button>
-        <button id="micToggleBtn" class="badge" style="cursor:pointer;border:none;background:var(--card2);color:var(--gold);font-weight:800;padding:4px 10px;border-radius:999px;font-size:11px;">🎙️ Tap Mic</button>
-      </div>
     </div>
     <div class="voice-meter"><div class="voice-meter-fill" id="gameMeter"></div></div>
   </div>
@@ -861,7 +867,7 @@ function showScreen(id){
 // ═══════════════════════════════════════════════════════════
 // TEXT-TO-SPEECH SYSTEM (Smooth, Clear, Lovely Voice Tuning)
 // ═══════════════════════════════════════════════════════════
-const TTS_CONFIG={rate:0.92,pitch:1.0,volume:1.0};
+const TTS_CONFIG={rate:0.92,pitch:0.96,volume:1.0};
 
 const TTS={
   available:'speechSynthesis' in window,
@@ -878,18 +884,16 @@ const TTS={
     const en=v.filter(x=>/en/i.test(x.lang));
     const pool=en.length?en:v;
 
-    // Priority 1: Microsoft Natural/Neural female voices (Aria, Jenny, Sonia, Ava, Emma)
-    let best=pool.find(x=>/aria.*natural|jenny.*natural|natural.*female/i.test(x.name))
-      || pool.find(x=>/(aria|jenny|ava|emma|sonia|serena|clara|libby|olivia|natasha)/i.test(x.name))
-      || pool.find(x=>/online.*natural/i.test(x.name)&&!/guy|david|mark|george/i.test(x.name))
-      || pool.find(x=>/natural|neural/i.test(x.name)&&!/david|mark|george/i.test(x.name))
-      // Priority 2: Google Female / Natural English
-      || pool.find(x=>/google.*female/i.test(x.name))
-      || pool.find(x=>/google.*(uk|us).*english/i.test(x.name))
-      // Priority 3: Clear smooth voices (Zira, etc.), avoiding harsh synthetic voices
-      || pool.find(x=>/zira/i.test(x.name))
-      || pool.find(x=>/female|woman/i.test(x.name))
-      || pool.find(x=>/en[-_](us|gb|ca|au)/i.test(x.lang)&&!/david|mark|desktop/i.test(x.name))
+    // Priority 1: High quality Microsoft Natural/Neural male voices (Guy, Christopher, Ryan, Eric, Andrew, Brian, Steffan)
+    let best=pool.find(x=>/(guy|christopher|ryan|eric|andrew|brian|steffan|roger|george|david|mark).*natural/i.test(x.name))
+      || pool.find(x=>/(guy|christopher|ryan|eric|andrew|brian|steffan|roger|george|david|mark).*neural/i.test(x.name))
+      || pool.find(x=>/natural.*(male|man)/i.test(x.name))
+      // Priority 2: Google Male / UK & US English Male
+      || pool.find(x=>/google.*(uk english male|us english male|english male)/i.test(x.name))
+      || pool.find(x=>/(male|man)/i.test(x.name)&&!/female|woman/i.test(x.name))
+      // Priority 3: Clear standard male English voices
+      || pool.find(x=>/(guy|christopher|ryan|eric|andrew|brian|george|david|mark)/i.test(x.name))
+      || pool.find(x=>/en[-_](us|gb|ca|au)/i.test(x.lang)&&!/aria|jenny|ava|emma|sonia|serena|clara|libby|olivia|zira|female/i.test(x.name))
       || pool[0];
 
     return best||pool[0]||v[0];
@@ -1339,8 +1343,11 @@ function doJump(strength=0.65){
     player.onGround = false;
     player.jumpFrame = 1;
 
-    // Maintain current running speed during flight if player was running, but do NOT inject artificial forward boost
-    jumpForwardBoost = currentSpeed > 10 ? currentSpeed : 0;
+    // Jump WILL move forward in the air!
+    const L = LEVELS[currentLevel]||LEVELS[0];
+    const leapSpeed = Math.max(L.speed * 0.95, 190);
+    jumpForwardBoost = Math.max(currentSpeed, leapSpeed);
+    currentSpeed = jumpForwardBoost;
 
     // Dynamic particle burst (cyan/pink for mid-air multi jump, gold for ground jump)
     const colors = isMidAir ? ["#38bdf8", "#ec4899", "#fbbf24", "#fff"] : ["#fbbf24", "#f59e0b", "#fff"];
@@ -1400,11 +1407,11 @@ function updatePlayer(dt){
 
       if(wasAirborne){
         jumpForwardBoost=0;
-        // Stop immediately upon landing: stay in place and do not move forward automatically!
-        if(targetSpeed<=0){
-          currentSpeed=0;
+        // Stop immediately upon landing: character lands and stays, zero forward slide!
+        if(controlMode==='joystick'){
+          currentSpeed = joystickHeld ? targetSpeed : 0;
         }else{
-          currentSpeed=Math.min(currentSpeed, targetSpeed);
+          currentSpeed = targetSpeed > 20 ? targetSpeed : 0;
         }
       }
     }else if(player.y>targetGround+30 && player.x+player.w>plat.x && player.x<plat.x+plat.w){
@@ -2462,15 +2469,16 @@ function update(dt){
     currentSpeed=lerp(currentSpeed,targetSpeed,CFG.DECEL*dt);
   }
 
-  // Airborne momentum: maintain forward speed across gaps
+  // Airborne momentum: character is only allowed to move forward if it's in the air (or actively running)
   if(!player.onGround){
     currentSpeed=Math.max(currentSpeed, jumpForwardBoost);
-    jumpForwardBoost=Math.max(jumpForwardBoost*0.997, 0);
   }else{
     jumpForwardBoost=0;
-    // When on ground, if no forward input (voice quiet or joystick released), stop immediately!
-    if(targetSpeed<=0){
-      currentSpeed=0;
+    // On ground: character should not move forward automatically!
+    if(controlMode==='joystick'){
+      if(!joystickHeld) currentSpeed=0;
+    }else{
+      if(targetSpeed<=0) currentSpeed=0;
     }
   }
   currentSpeed=Math.min(currentSpeed,CFG.MAX_SPEED);
@@ -2632,23 +2640,23 @@ function updateControlModeUI(){
   const tip=$("gameTip");
 
   if(controlMode==='voice'){
-    if(label) label.textContent="Switch to Joystick 🕹️";
+    if(label) label.textContent="🎤 Voice Only";
     if(btn){
       btn.style.background="var(--purple-d)";
-      btn.style.color="var(--purple)";
-      btn.style.borderColor="rgba(255,255,255,0.18)";
+      btn.style.borderColor="var(--purple)";
+      btn.title="Switch to Joystick Mode 🕹️";
     }
     if(actionWrap) actionWrap.style.display="none"; // Absolutely NO JUMP / RUN BUTTON in voice play!
     if(tip) tip.textContent="Gentle voice = run • Quick loud shout = jump • Shout mid-air to multi-jump!";
   }else{
-    if(label) label.textContent="Switch to Voice 🎤";
+    if(label) label.textContent="🕹️ Joystick Mode";
     if(btn){
       btn.style.background="linear-gradient(135deg,#16a34a,#15803d)";
-      btn.style.color="#fff";
       btn.style.borderColor="#22c55e";
+      btn.title="Switch to Voice Mode 🎤";
     }
     if(actionWrap) actionWrap.style.display="flex"; // Show jump & run buttons in joystick play!
-    if(tip) tip.textContent="Hold RUN ▶ to move forward • Tap JUMP ⬆ to jump • Tap JUMP mid-air to multi-jump!";
+    if(tip) tip.textContent="Hold RUN ▶ to move forward • Tap JUMP ⬆ to leap forward • Mid-air jumps continue forward!";
   }
 }
 if($("controlModeBtn")){
