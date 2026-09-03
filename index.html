@@ -372,17 +372,23 @@ canvas{width:100%;height:auto;max-height:68vh;display:block;touch-action:none;ba
     <div class="toast hidden" id="gameToast">Nice! 🎉</div>
   </div>
   <div class="game-action-wrap" style="margin-top:6px;display:flex;flex-direction:column;gap:6px;">
-    <button class="btn btn-jump" id="jumpBtn">⬆ JUMP</button>
+    <div style="display:flex;gap:6px;">
+      <button class="btn" id="runBtn" style="flex:1;min-height:48px;font-size:16px;font-weight:900;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:var(--r-md);box-shadow:0 6px 18px rgba(34,197,94,.35);letter-spacing:.5px;touch-action:manipulation;">▶ RUN</button>
+      <button class="btn btn-jump" id="jumpBtn" style="flex:1;">⬆ JUMP</button>
+    </div>
     <button class="btn btn-gold btn-sm" id="warmupSkipBtn" style="display:none">⚡ Skip Warm-up → Start Level 1</button>
   </div>
   <div class="game-voice">
     <div class="game-voice-label" style="display:flex;justify-content:space-between;align-items:center;">
       <span>🎙 <span id="voiceLabel">Voice power</span></span>
-      <button id="micToggleBtn" class="badge" style="cursor:pointer;border:none;background:var(--card2);color:var(--gold);font-weight:800;padding:4px 10px;border-radius:999px;">🎙️ Tap to Turn On Mic</button>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button id="controlModeBtn" class="badge" style="cursor:pointer;border:none;background:var(--purple-d);color:var(--purple);font-weight:800;padding:4px 10px;border-radius:999px;font-size:11px;white-space:nowrap;">🎤 Voice Mode</button>
+        <button id="micToggleBtn" class="badge" style="cursor:pointer;border:none;background:var(--card2);color:var(--gold);font-weight:800;padding:4px 10px;border-radius:999px;font-size:11px;">🎙️ Tap Mic</button>
+      </div>
     </div>
     <div class="voice-meter"><div class="voice-meter-fill" id="gameMeter"></div></div>
   </div>
-  <p class="game-tip">Gentle voice = run • Quick loud shout or tap JUMP • Shout mid-air to double jump!</p>
+  <p class="game-tip" id="gameTip">Gentle voice = run • Quick loud shout or tap JUMP • Shout mid-air to double jump!</p>
 </section>
 
 <!-- ═══ MAP / ROADMAP SCREEN ═══ -->
@@ -514,6 +520,10 @@ let spawnTimer=0;
 let currentSpeed=0; // actual current speed (smoothed)
 let targetSpeed=0;
 let toastTimer=0;
+
+// ─── Control Mode: 'voice' (default, main fun) or 'joystick' (touch/button fallback) ───
+let controlMode='voice';
+let joystickHeld=false; // true while RUN button is pressed/touched
 
 // Player
 let player={x:100,y:CFG.GROUND-CFG.PLAYER_H,w:CFG.PLAYER_W,h:CFG.PLAYER_H,
@@ -1711,38 +1721,38 @@ const LEVEL_PATTERNS=[
     {w:250, y:420, gap:120, spikes:[{xOffset:100, count:1}], heart:true},
     {w:240, y:380, gap:125}
   ],
-  // Level 3 (Arrow Alley 🏹 — + Flying Arrows, Rotating blades, overhead ceiling blocks)
+  // Level 3 (Arrow Alley 🏹 — wider platforms, practical gaps)
   [
-    {w:210, y:420, gap:135, arrow:true, arrowY:350, spikes:[{xOffset:90, count:2}]},
-    {w:180, y:350, gap:140, rotating:true, rotX:90, rotY:28},
-    {w:190, y:420, gap:145, overhead:{y:50, xOffset:30, w:120, h:65, spikes:true}},
-    {w:170, y:340, gap:140, arrow:true, arrowY:340, spikes:[{xOffset:70, count:1}]},
-    {w:200, y:420, gap:145, rotating:true, rotX:100, rotY:28, spikes:[{xOffset:40, count:2}]},
-    {w:180, y:360, gap:140},
-    {w:190, y:420, gap:150, overhead:{y:55, xOffset:25, w:130, h:60, spikes:true}},
-    {w:170, y:350, gap:140, arrow:true, arrowY:350, spikes:[{xOffset:65, count:2}]}
+    {w:300, y:420, gap:105, arrow:true, arrowY:350, spikes:[{xOffset:140, count:1}]},
+    {w:270, y:370, gap:110, rotating:true, rotX:130, rotY:28},
+    {w:290, y:420, gap:110, overhead:{y:55, xOffset:50, w:100, h:55, spikes:true}},
+    {w:260, y:360, gap:115, arrow:true, arrowY:340},
+    {w:280, y:420, gap:110, rotating:true, rotX:130, rotY:28, spikes:[{xOffset:60, count:1}]},
+    {w:270, y:380, gap:110},
+    {w:290, y:420, gap:115, overhead:{y:60, xOffset:40, w:110, h:55, spikes:true}},
+    {w:260, y:370, gap:110, arrow:true, arrowY:350}
   ],
-  // Level 4 (Chaos Canyon ⚡ — All types combined: Moving, Falling, Arrows, Rotating, Overhead)
+  // Level 4 (Chaos Canyon ⚡ — wider platforms, practical gaps)
   [
-    {w:160, y:420, gap:160, moving:true, movingRange:45, moveSpeed:2.5, spikes:[{xOffset:55, count:2}]},
-    {w:140, y:340, gap:165, falling:true, fallingX:40, overhead:{y:45, xOffset:15, w:105, h:70, spikes:true}},
-    {w:150, y:420, gap:160, arrow:true, arrowY:350, spikes:[{xOffset:40, count:3}]},
-    {w:130, y:320, gap:170, rotating:true, rotX:65, rotY:28},
-    {w:160, y:430, gap:160, moving:true, movingRange:40, moveSpeed:2.4, spikes:[{xOffset:50, count:2}], overhead:{y:40, xOffset:20, w:110, h:70, spikes:true}},
-    {w:140, y:350, gap:170, falling:true, fallingX:45},
-    {w:150, y:420, gap:165, arrow:true, arrowY:340, spikes:[{xOffset:45, count:3}]},
-    {w:135, y:330, gap:170, rotating:true, rotX:65, rotY:28, overhead:{y:50, xOffset:15, w:95, h:70, spikes:true}}
+    {w:260, y:420, gap:115, moving:true, movingRange:35, moveSpeed:2.0, spikes:[{xOffset:80, count:1}]},
+    {w:240, y:360, gap:120, falling:true, fallingX:60, overhead:{y:50, xOffset:30, w:90, h:60, spikes:true}},
+    {w:250, y:420, gap:115, arrow:true, arrowY:350, spikes:[{xOffset:60, count:2}]},
+    {w:230, y:350, gap:120, rotating:true, rotX:110, rotY:28},
+    {w:260, y:420, gap:115, moving:true, movingRange:30, moveSpeed:2.0, spikes:[{xOffset:70, count:1}], overhead:{y:50, xOffset:30, w:90, h:60, spikes:true}},
+    {w:240, y:370, gap:120, falling:true, fallingX:50},
+    {w:250, y:420, gap:120, arrow:true, arrowY:340, spikes:[{xOffset:60, count:2}]},
+    {w:230, y:360, gap:120, rotating:true, rotX:110, rotY:28}
   ],
-  // Level 5 (Final Battlefield 🔥 — Everything combined, tighter timing, fastest intensity)
+  // Level 5 (Final Battlefield 🔥 — wider platforms, practical gaps, completable)
   [
-    {w:130, y:420, gap:175, moving:true, movingRange:48, moveSpeed:2.8, spikes:[{xOffset:35, count:2}]},
-    {w:120, y:330, gap:180, falling:true, fallingX:35, overhead:{y:35, xOffset:15, w:90, h:80, spikes:true}},
-    {w:115, y:430, gap:185, arrow:true, arrowY:350, spikes:[{xOffset:30, count:2}]},
-    {w:125, y:310, gap:175, rotating:true, rotX:60, rotY:26},
-    {w:130, y:420, gap:185, moving:true, movingRange:45, moveSpeed:2.7, spikes:[{xOffset:30, count:3}], overhead:{y:40, xOffset:20, w:85, h:75, spikes:true}},
-    {w:115, y:340, gap:180, falling:true, fallingX:35},
-    {w:125, y:440, gap:185, arrow:true, arrowY:340, spikes:[{xOffset:35, count:2}]},
-    {w:120, y:320, gap:180, rotating:true, rotX:60, rotY:26, overhead:{y:35, xOffset:15, w:85, h:80, spikes:true}}
+    {w:240, y:420, gap:120, moving:true, movingRange:35, moveSpeed:2.2, spikes:[{xOffset:60, count:1}]},
+    {w:220, y:350, gap:125, falling:true, fallingX:50, overhead:{y:45, xOffset:25, w:85, h:65, spikes:true}},
+    {w:230, y:420, gap:120, arrow:true, arrowY:350, spikes:[{xOffset:50, count:1}]},
+    {w:210, y:340, gap:125, rotating:true, rotX:100, rotY:26},
+    {w:240, y:420, gap:125, moving:true, movingRange:30, moveSpeed:2.2, spikes:[{xOffset:55, count:2}], overhead:{y:45, xOffset:30, w:80, h:65, spikes:true}},
+    {w:220, y:360, gap:125, falling:true, fallingX:45},
+    {w:230, y:420, gap:125, arrow:true, arrowY:340, spikes:[{xOffset:50, count:1}]},
+    {w:210, y:350, gap:125, rotating:true, rotX:100, rotY:26}
   ]
 ];
 
@@ -2399,16 +2409,23 @@ function update(dt){
 
   // Voice processing
   let voiceLevel=0, shouldJump=false, jumpStrength=0.5;
-  if(mic.ready){
+  if(mic.ready && controlMode==='voice'){
     const v=processVoice(dt);
     voiceLevel=v.voiceLevel;
     shouldJump=v.shouldJump;
     jumpStrength=v.jumpStrength||0.5;
   }
 
+  // Joystick mode: RUN button held = full speed forward
+  if(controlMode==='joystick' && joystickHeld){
+    voiceLevel=0.85; // Strong run speed
+  }
+
   // Update voice meter
   $("gameMeter").style.width=Math.floor(clamp(voiceLevel,0,1)*100)+"%";
-  if(voiceLevel>0.7){
+  if(controlMode==='joystick'){
+    $("voiceLabel").textContent=joystickHeld?"Running! 🏃":"Tap RUN ▶";
+  }else if(voiceLevel>0.7){
     $("voiceLabel").textContent="LOUD! 📢";
   }else if(voiceLevel>0.2){
     $("voiceLabel").textContent="Voice detected 🗣️";
@@ -2422,19 +2439,14 @@ function update(dt){
 
   // Smooth acceleration/deceleration — responsive onset, gradual slowdown
   if(targetSpeed>currentSpeed){
-    // Accelerate: character picks up speed quickly when voice starts
     currentSpeed=lerp(currentSpeed,targetSpeed,CFG.ACCEL*dt);
   }else{
-    // Decelerate: character coasts to a gentle stop when voice goes quiet
     currentSpeed=lerp(currentSpeed,targetSpeed,CFG.DECEL*dt);
   }
 
   // Airborne momentum: maintain forward speed across gaps
-  // Scale with jumpForwardBoost (which itself is proportional to jump strength)
-  // so small hops don't fly the character forward at max speed
   if(!player.onGround){
     currentSpeed=Math.max(currentSpeed, jumpForwardBoost);
-    // Slow air-drag: very gently reduce airborne speed toward landing
     jumpForwardBoost=Math.max(jumpForwardBoost*0.997, 0);
   }else{
     jumpForwardBoost=0;
@@ -2578,6 +2590,45 @@ $("ovBtn").addEventListener("click",()=>{
 if($("jumpBtn")){
   $("jumpBtn").addEventListener("click",()=>{ doJump(0.65); });
 }
+
+// ─── RUN Button (Hold-to-Run for Joystick Mode) ───
+if($("runBtn")){
+  const startRun=()=>{ joystickHeld=true; };
+  const stopRun=()=>{ joystickHeld=false; };
+  $("runBtn").addEventListener("mousedown", startRun);
+  $("runBtn").addEventListener("mouseup", stopRun);
+  $("runBtn").addEventListener("mouseleave", stopRun);
+  $("runBtn").addEventListener("touchstart", (e)=>{ e.preventDefault(); startRun(); }, {passive:false});
+  $("runBtn").addEventListener("touchend", (e)=>{ e.preventDefault(); stopRun(); }, {passive:false});
+  $("runBtn").addEventListener("touchcancel", stopRun);
+}
+
+// ─── Control Mode Toggle (Voice 🎤 ↔ Joystick 🕹️) ───
+function updateControlModeUI(){
+  const btn=$("controlModeBtn");
+  const tip=$("gameTip");
+  if(controlMode==='voice'){
+    btn.textContent="🎤 Voice Mode";
+    btn.style.background="var(--purple-d)";
+    btn.style.color="var(--purple)";
+    if(tip) tip.textContent="Gentle voice = run • Quick loud shout or tap JUMP • Shout mid-air to double jump!";
+  }else{
+    btn.textContent="🕹️ Joystick Mode";
+    btn.style.background="linear-gradient(135deg,#16a34a,#15803d)";
+    btn.style.color="#fff";
+    if(tip) tip.textContent="Hold RUN ▶ to move forward • Tap JUMP ⬆ to jump • Tap JUMP mid-air for double jump!";
+  }
+}
+if($("controlModeBtn")){
+  $("controlModeBtn").addEventListener("click", ()=>{
+    sfx("click");
+    controlMode = controlMode==='voice' ? 'joystick' : 'voice';
+    joystickHeld = false;
+    updateControlModeUI();
+    showToast(controlMode==='voice' ? "🎤 Voice Mode — Use your voice to control!" : "🕹️ Joystick Mode — Hold RUN ▶ + Tap JUMP ⬆!");
+  });
+}
+updateControlModeUI();
 
 // Skip warm-up to Level 1
 function skipToLevel1(){
