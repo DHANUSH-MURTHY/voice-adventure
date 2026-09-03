@@ -867,7 +867,7 @@ function showScreen(id){
 // ═══════════════════════════════════════════════════════════
 // TEXT-TO-SPEECH SYSTEM (Smooth, Clear, Lovely Voice Tuning)
 // ═══════════════════════════════════════════════════════════
-const TTS_CONFIG={rate:0.92,pitch:0.96,volume:1.0};
+const TTS_CONFIG={rate:0.92,pitch:0.84,volume:1.0};
 
 const TTS={
   available:'speechSynthesis' in window,
@@ -884,19 +884,32 @@ const TTS={
     const en=v.filter(x=>/en/i.test(x.lang));
     const pool=en.length?en:v;
 
-    // Priority 1: High quality Microsoft Natural/Neural male voices (Guy, Christopher, Ryan, Eric, Andrew, Brian, Steffan)
-    let best=pool.find(x=>/(guy|christopher|ryan|eric|andrew|brian|steffan|roger|george|david|mark).*natural/i.test(x.name))
-      || pool.find(x=>/(guy|christopher|ryan|eric|andrew|brian|steffan|roger|george|david|mark).*neural/i.test(x.name))
-      || pool.find(x=>/natural.*(male|man)/i.test(x.name))
-      // Priority 2: Google Male / UK & US English Male
-      || pool.find(x=>/google.*(uk english male|us english male|english male)/i.test(x.name))
-      || pool.find(x=>/(male|man)/i.test(x.name)&&!/female|woman/i.test(x.name))
-      // Priority 3: Clear standard male English voices
-      || pool.find(x=>/(guy|christopher|ryan|eric|andrew|brian|george|david|mark)/i.test(x.name))
-      || pool.find(x=>/en[-_](us|gb|ca|au)/i.test(x.lang)&&!/aria|jenny|ava|emma|sonia|serena|clara|libby|olivia|zira|female/i.test(x.name))
-      || pool[0];
+    // Strict filter to EXCLUDE known female voices across Windows, Mac, iOS, Android, and Chrome:
+    const isFemale=(x)=>{
+      const n=((x.name||"")+" "+(x.voiceURI||"")).toLowerCase();
+      return /(female|woman|girl|zira|hazel|samantha|karen|moira|tessa|veena|fiona|victoria|susan|allison|ava|aria|jenny|emma|sonia|serena|clara|libby|natasha|google us english)/i.test(n);
+    };
 
-    return best||pool[0]||v[0];
+    // Filter to known MALE voices:
+    const isMale=(x)=>{
+      const n=((x.name||"")+" "+(x.voiceURI||"")).toLowerCase();
+      return /(male|man|boy|david|mark|guy|christopher|ryan|eric|andrew|brian|steffan|roger|george|daniel|arthur|oliver|fred|aaron|gordon|rishi|alex|evan|nathan|tom|bruce|#male|-m-)/i.test(n) && !isFemale(x);
+    };
+
+    // 1. First priority: Explicit male voice in English
+    let best=pool.find(x=>isMale(x) && /natural|neural/i.test(x.name))
+      || pool.find(x=>isMale(x) && /david/i.test(x.name))
+      || pool.find(x=>isMale(x) && /uk english male|us english male/i.test(x.name))
+      || pool.find(x=>isMale(x))
+      // 2. Second priority: Any voice in all voices that is explicitly male
+      || v.find(x=>isMale(x))
+      // 3. Third priority: Non-female English voice
+      || pool.find(x=>!isFemale(x))
+      // 4. Fallback to non-female any language
+      || v.find(x=>!isFemale(x))
+      || pool[0] || v[0];
+
+    return best;
   },
 
   init(){
@@ -911,10 +924,11 @@ const TTS={
   speak(text,onEnd){
     this.stop();
     if(!this.available){this.speaking=false;if(onEnd) setTimeout(onEnd,100);return;}
-    if(!this.voice) this.voice=this.pickBestVoice();
+    // Always re-query to guarantee freshly loaded male voice is used
+    this.voice=this.pickBestVoice() || this.voice;
     const u=new SpeechSynthesisUtterance(text);
     u.rate=TTS_CONFIG.rate;
-    u.pitch=TTS_CONFIG.pitch;
+    u.pitch=TTS_CONFIG.pitch; // 0.84 guarantees deep, masculine narrator tone!
     u.volume=TTS_CONFIG.volume;
     if(this.voice) u.voice=this.voice;
     this._onEnd=onEnd;
