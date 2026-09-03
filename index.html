@@ -48,7 +48,7 @@ p{color:var(--text2);line-height:1.55;margin-bottom:10px;font-size:clamp(14px,3.
 .btn{border:none;border-radius:var(--r-md);padding:14px 24px;font-size:16px;font-weight:800;
   cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--purple),var(--purple-d));
   min-height:48px;transition:transform .12s,box-shadow .12s;font-family:inherit;width:100%;
-  touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
 .btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(139,92,246,.25)}
 .btn:active{transform:scale(.97)}
 .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
@@ -2455,11 +2455,6 @@ window.addEventListener("keydown",e=>{
   }
 });
 
-// Prevent double-tap zoom on mobile
-document.addEventListener("touchstart",e=>{
-  if(e.target.closest(".btn,.btn-sm")) e.preventDefault();
-},{passive:false});
-
 // Handle page visibility (pause when hidden)
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden && gameRunning && !paused){
@@ -2475,16 +2470,20 @@ initIntroDots();
 showScreen("introScreen");
 requestAnimationFrame(mainLoop);
 
-// Ensure AudioContext can be created after user gesture
-document.addEventListener("click",function initAudio(){
-  if(!mic.ctx){
-    try{
-      mic.ctx=new(window.AudioContext||window.webkitAudioContext)();
-      if(mic.ctx.state==="suspended") mic.ctx.resume();
-    }catch(e){}
-  }
-  document.removeEventListener("click",initAudio);
-},{once:false});
+// Ensure AudioContext and SpeechSynthesis are primed on first touch or click
+["click", "touchstart", "pointerdown"].forEach(evt=>{
+  document.addEventListener(evt, function initAudio(){
+    if(!mic.ctx){
+      try{
+        mic.ctx=new(window.AudioContext||window.webkitAudioContext)();
+        if(mic.ctx.state==="suspended") mic.ctx.resume();
+      }catch(e){}
+    }
+    if('speechSynthesis' in window && window.speechSynthesis.paused){
+      window.speechSynthesis.resume();
+    }
+  }, {passive:true});
+});
 
 })();
 </script>
