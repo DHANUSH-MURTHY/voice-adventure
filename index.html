@@ -1,0 +1,2344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="description" content="A fun voice-controlled adventure game made for Rakshita — complete 5 levels to unlock a special surprise!">
+<title>A Special Voice Adventure 💛</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0e1a;--card:#111827;--card2:#1a2235;--border:#1e293b;
+  --text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;
+  --purple:#8b5cf6;--purple-d:#6d28d9;--pink:#ec4899;
+  --gold:#f59e0b;--green:#22c55e;--green-d:#15803d;
+  --red:#ef4444;--cyan:#06b6d4;
+  --r-lg:20px;--r-md:14px;--r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100dvh;background:var(--bg);color:var(--text);
+  font-family:'Nunito',system-ui,-apple-system,sans-serif;overflow-x:hidden}
+body{display:flex;justify-content:center;padding:0 0 env(safe-area-inset-bottom)}
+#app{width:min(600px,100%);padding:8px 10px 24px;display:flex;flex-direction:column;min-height:100dvh}
+
+/* ─── Header ─── */
+header{display:flex;justify-content:space-between;align-items:center;padding:8px 2px 12px;flex-shrink:0}
+.brand{font-weight:900;font-size:clamp(14px,3.5vw,18px);letter-spacing:.3px;background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.badge{font-size:11px;color:var(--text2);background:var(--card);border:1px solid var(--border);padding:5px 10px;border-radius:999px;white-space:nowrap}
+
+/* ─── Screens ─── */
+.screen{display:none;flex-direction:column;flex:1}
+.screen.active{display:flex;animation:fadeUp .4s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+/* ─── Cards ─── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;margin-bottom:12px}
+.card-glow{box-shadow:0 0 40px rgba(139,92,246,.08)}
+
+/* ─── Typography ─── */
+h1{font-size:clamp(26px,6vw,42px);font-weight:900;line-height:1.1;margin-bottom:8px}
+h2{font-size:clamp(22px,5vw,32px);font-weight:900;margin-bottom:6px}
+h3{font-size:18px;font-weight:800;margin-bottom:4px}
+p{color:var(--text2);line-height:1.55;margin-bottom:10px;font-size:clamp(14px,3.2vw,16px)}
+.small{font-size:13px;color:var(--text3)}
+.center{text-align:center}
+
+/* ─── Buttons ─── */
+.btn{border:none;border-radius:var(--r-md);padding:14px 24px;font-size:16px;font-weight:800;
+  cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--purple),var(--purple-d));
+  min-height:48px;transition:transform .12s,box-shadow .12s;font-family:inherit;width:100%;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(139,92,246,.25)}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn-green{background:linear-gradient(135deg,var(--green),var(--green-d))}
+.btn-gold{background:linear-gradient(135deg,var(--gold),#d97706)}
+.btn-ghost{background:rgba(30,41,59,.6);border:1px solid var(--border)}
+.btn-sm{padding:10px 16px;font-size:14px;min-height:40px}
+.btn-row{display:flex;gap:10px;margin-top:12px}
+.btn-row .btn{flex:1}
+
+/* ─── Guide Character & Intro Avatar ─── */
+.guide-wrap{display:flex;flex-direction:column;align-items:center;margin:16px 0}
+.guide-body{width:90px;height:90px;border-radius:50%;background:linear-gradient(145deg,#a78bfa,#7c3aed);
+  position:relative;box-shadow:0 8px 30px rgba(124,58,237,.3);animation:guideBob 2s ease-in-out infinite}
+.guide-body.talking{animation:guideTalk .4s ease-in-out infinite}
+.guide-body.celebrating{animation:guideJump .5s ease-in-out infinite}
+.guide-eye{width:14px;height:17px;background:#fff;border-radius:50%;position:absolute;top:28px}
+.guide-eye.l{left:22px}.guide-eye.r{right:22px}
+.guide-pupil{width:7px;height:9px;background:#1e1b4b;border-radius:50%;position:absolute;bottom:2px;left:50%;transform:translateX(-50%)}
+.guide-cheek{width:10px;height:7px;background:rgba(244,114,182,.4);border-radius:50%;position:absolute;top:46px}
+.guide-cheek.l{left:12px}.guide-cheek.r{right:12px}
+.guide-mouth{width:14px;height:7px;border-bottom:3px solid #312e81;border-radius:0 0 50% 50%;position:absolute;bottom:24px;left:50%;transform:translateX(-50%);transition:all .2s}
+.guide-mouth.open{width:12px;height:12px;background:#312e81;border:none;border-radius:50%;bottom:22px}
+.guide-star{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:24px;animation:starFloat 2.5s ease-in-out infinite}
+.guide-label{font-size:13px;color:var(--text2);margin-top:8px;font-weight:800;letter-spacing:0.3px}
+@keyframes guideBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes guideTalk{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-4px) scale(1.03)}}
+@keyframes guideJump{0%,100%{transform:translateY(0) rotate(0)}30%{transform:translateY(-18px) rotate(-5deg)}70%{transform:translateY(-18px) rotate(5deg)}}
+@keyframes starFloat{0%,100%{transform:translateX(-50%) translateY(0) rotate(0)}50%{transform:translateX(-50%) translateY(-5px) rotate(15deg)}}
+
+/* ─── Intro Guide & Avatar Duo ─── */
+.intro-guide-duo{display:flex;align-items:center;justify-content:center;gap:22px;margin:12px 0 20px;flex-wrap:wrap}
+.intro-guide-duo .guide-wrap{margin:0;display:flex;flex-direction:column;align-items:center}
+.intro-avatar-wrap{display:flex;flex-direction:column;align-items:center;margin:0}
+.intro-avatar-frame{width:115px;height:115px;border-radius:22px;border:3px solid var(--purple);
+  overflow:hidden;box-shadow:0 10px 30px rgba(139,92,246,.35),0 0 20px rgba(236,72,153,.25);
+  background:#ffffff;display:flex;align-items:center;justify-content:center;
+  animation:avatarFloat 3s ease-in-out infinite;transition:transform .3s,border-color .3s}
+.intro-avatar-frame.talking{animation:avatarPulse .45s ease-in-out infinite;border-color:var(--pink);box-shadow:0 0 35px rgba(236,72,153,.5)}
+.intro-avatar-frame img{width:100%;height:100%;object-fit:contain;display:block;transition:opacity .25s ease}
+@keyframes avatarFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes avatarPulse{0%,100%{transform:scale(1) translateY(-2px)}50%{transform:scale(1.06) translateY(-6px)}}
+
+/* ─── Dialogue ─── */
+.dialogue-bubble{background:var(--card2);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:20px;text-align:center;min-height:100px;display:flex;align-items:center;justify-content:center;
+  margin-bottom:14px;position:relative}
+.dialogue-bubble::after{content:'';position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);
+  border:10px solid transparent;border-top-color:var(--card2)}
+.dialogue-text{font-size:clamp(17px,4vw,22px);font-weight:700;line-height:1.4;color:var(--text);
+  animation:textPop .3s ease}
+@keyframes textPop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+.dialogue-dots{display:flex;gap:6px;justify-content:center;margin:8px 0}
+.dialogue-dot{width:10px;height:10px;border-radius:50%;background:var(--border);transition:all .25s}
+.dialogue-dot.active{background:var(--purple);transform:scale(1.2);box-shadow:0 0 8px var(--purple)}
+.dialogue-dot.done{background:var(--green)}
+
+/* ─── Calibration ─── */
+.calib-step{padding:14px;background:var(--card2);border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:10px;text-align:center}
+.calib-step .icon{font-size:32px;margin-bottom:6px}
+.calib-step.active{border-color:var(--purple);box-shadow:0 0 20px rgba(139,92,246,.15)}
+.calib-step.done{border-color:var(--green);opacity:.7}
+.voice-meter{height:14px;background:var(--card2);border-radius:99px;overflow:hidden;margin:8px 0;border:1px solid var(--border)}
+.voice-meter-fill{height:100%;width:0;border-radius:99px;transition:width .06s linear;background:linear-gradient(90deg,var(--green),var(--gold),var(--red))}
+.meter-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);font-weight:700;padding:0 2px}
+.mic-status{font-size:13px;color:var(--text3);text-align:center;margin:8px 0;min-height:20px}
+
+/* ─── Game Screen ─── */
+.hud{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.hud-item{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:7px 12px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.hud-hearts{color:var(--red);letter-spacing:2px}
+.hud-item.grow{flex:1}
+.canvas-wrap{position:relative;border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;border:1px solid var(--border)}
+canvas{width:100%;height:auto;display:block;touch-action:none;background:#8ec5fc}
+.game-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,14,26,.85);z-index:5}
+.game-overlay.hidden{display:none}
+.overlay-card{max-width:360px;width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:fadeUp .35s ease}
+.overlay-big{font-size:clamp(28px,7vw,42px);font-weight:1000;margin-bottom:8px}
+.game-btns{display:flex;gap:8px;margin-top:8px}
+.game-btns .btn{flex:1}
+.game-voice{margin-top:6px}
+.game-voice-label{font-size:12px;color:var(--text3);font-weight:700;margin-bottom:3px;display:flex;align-items:center;gap:4px}
+.game-tip{font-size:12px;color:var(--text3);text-align:center;margin-top:6px}
+.toast{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(17,24,39,.9);
+  border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 16px;font-size:14px;font-weight:700;
+  z-index:6;animation:toastIn .3s ease;pointer-events:none;white-space:nowrap}
+.toast.hidden{display:none}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-10px)}to{opacity:1;transform:translateX(-50%)}}
+
+/* ─── Dynamic Reaction Popups (Lost & Reward) ─── */
+.game-popup{position:absolute;top:16px;right:16px;z-index:30;pointer-events:none;
+  transition:all .32s cubic-bezier(0.34, 1.56, 0.64, 1)}
+.game-popup.hidden{opacity:0;transform:scale(0.5) translateY(-25px);pointer-events:none}
+.game-popup-card{display:flex;align-items:center;gap:12px;padding:8px 14px 8px 8px;border-radius:18px;
+  background:rgba(17,24,39,0.94);backdrop-filter:blur(10px);border:2px solid var(--purple);
+  box-shadow:0 12px 35px rgba(0,0,0,0.6);animation:popupBounce .35s cubic-bezier(0.34,1.56,0.64,1)}
+.game-popup.popup-lost .game-popup-card{border-color:var(--red);box-shadow:0 0 25px rgba(239,68,68,0.45)}
+.game-popup.popup-reward .game-popup-card{border-color:var(--gold);box-shadow:0 0 25px rgba(245,158,11,0.55)}
+.game-popup-card img{width:56px;height:56px;border-radius:14px;object-fit:cover;border:1.5px solid rgba(255,255,255,0.2)}
+.game-popup-text{font-size:15px;font-weight:900;color:#fff;white-space:nowrap}
+@keyframes popupBounce{0%{opacity:0;transform:scale(0.5) rotate(-10deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+
+/* ─── Curved Roadmap ─── */
+.roadmap-wrap{position:relative;width:100%;max-width:380px;margin:14px auto;padding:12px 6px;min-height:470px;
+  display:flex;flex-direction:column;justify-content:space-between}
+.road-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+.road-track-border{fill:none;stroke:#334155;stroke-width:44;stroke-linecap:round;stroke-linejoin:round}
+.road-track-bg{fill:none;stroke:#1e293b;stroke-width:40;stroke-linecap:round;stroke-linejoin:round}
+.road-track-dash{fill:none;stroke:#fbbf24;stroke-width:3;stroke-dasharray:8 10;stroke-linecap:round}
+.roadmap-nodes{position:relative;z-index:2;display:flex;flex-direction:column;gap:20px;width:100%}
+.road-node{display:flex;align-items:center;gap:12px;padding:6px 14px 6px 8px;border-radius:999px;
+  background:rgba(17,24,39,0.92);backdrop-filter:blur(8px);border:1.5px solid var(--border);
+  width:fit-content;max-width:240px;box-shadow:0 6px 20px rgba(0,0,0,0.4);transition:all .3s ease}
+.road-node.pos-left{align-self:flex-start;margin-left:14px}
+.road-node.pos-center{align-self:center}
+.road-node.pos-right{align-self:flex-end;margin-right:14px;flex-direction:row-reverse;text-align:right;padding:6px 8px 6px 14px}
+.road-node .node-icon{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:18px;font-weight:900;flex-shrink:0;border:2px solid var(--border);
+  background:var(--card2);transition:all .3s}
+.road-node.done{border-color:rgba(34,197,94,0.5)}
+.road-node.done .node-icon{background:var(--green-d);border-color:var(--green);color:#fff;box-shadow:0 0 14px rgba(34,197,94,0.4)}
+.road-node.current{border-color:var(--purple);box-shadow:0 0 20px rgba(139,92,246,0.35)}
+.road-node.current .node-icon{background:var(--purple-d);border-color:var(--purple);color:#fff;animation:roadPulse 1.5s ease-in-out infinite}
+.road-node.locked{opacity:0.55}
+.road-node.reward{border-color:var(--gold);box-shadow:0 0 25px rgba(245,158,11,0.35)}
+.road-node.reward .node-icon{background:linear-gradient(135deg,var(--gold),#d97706);border-color:var(--gold);font-size:20px}
+.node-label{font-weight:800;font-size:13px;line-height:1.2}
+.node-sub{font-size:11px;color:var(--text2);margin-top:2px}
+@keyframes roadPulse{0%,100%{box-shadow:0 0 0 0 rgba(139,92,246,0.6)}50%{box-shadow:0 0 0 12px rgba(139,92,246,0)}}
+
+/* ─── Certificate / Reward ─── */
+.reward-reveal{animation:revealPop .6s ease}
+@keyframes revealPop{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:none}}
+.cert-frame{background:#fff;border-radius:var(--r-md);padding:6px;box-shadow:0 4px 30px rgba(245,158,11,.2),0 0 80px rgba(245,158,11,.08)}
+.cert-frame img{display:block;width:100%;height:auto;border-radius:var(--r-sm)}
+.final-msg{font-size:clamp(14px,3.5vw,17px);color:var(--text2);line-height:1.6;margin-top:14px;font-style:italic}
+.confetti-wrap{position:fixed;inset:0;pointer-events:none;z-index:99;overflow:hidden}
+.confetti-piece{position:absolute;width:10px;height:10px;border-radius:2px;animation:confettiFall linear forwards}
+@keyframes confettiFall{
+  0%{transform:translateY(-20px) rotate(0);opacity:1}
+  100%{transform:translateY(100vh) rotate(720deg);opacity:0}
+}
+
+/* ─── Speaking Indicator ─── */
+.speaking-indicator{display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 0}
+.speaking-dot{width:6px;height:6px;border-radius:50%;background:var(--purple);animation:speakPulse .8s ease-in-out infinite}
+.speaking-dot:nth-child(2){animation-delay:.15s}
+.speaking-dot:nth-child(3){animation-delay:.3s}
+.speaking-label{font-size:12px;color:var(--text3);margin-left:6px;font-weight:700}
+@keyframes speakPulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
+
+/* ─── Screen Shake ─── */
+.screen-shake{animation:shake .35s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+
+/* ─── Intro Start ─── */
+#introStartWrap h2{background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+#introDialogueWrap{gap:6px}
+
+/* ─── Responsive ─── */
+@media(max-width:420px){
+  #app{padding:6px 6px 20px}
+  .card{padding:14px}
+  .overlay-card{padding:18px}
+  .hud{gap:5px}
+  .hud-item{padding:5px 8px;font-size:12px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ═══ Header ═══ -->
+<header>
+  <div class="brand">🎤 Voice Adventure</div>
+  <div class="badge" id="headerBadge">A tiny surprise</div>
+</header>
+
+<!-- ═══ INTRO SCREEN ═══ -->
+<section id="introScreen" class="screen active">
+  <div class="card card-glow" style="flex:1;display:flex;flex-direction:column;justify-content:center">
+    <!-- Guide & Story Card Duo (Keeping old toon guide) -->
+    <div class="intro-guide-duo">
+      <div class="guide-wrap">
+        <div class="guide-body" id="introGuide">
+          <div class="guide-star">✨</div>
+          <div class="guide-eye l"><div class="guide-pupil"></div></div>
+          <div class="guide-eye r"><div class="guide-pupil"></div></div>
+          <div class="guide-cheek l"></div>
+          <div class="guide-cheek r"></div>
+          <div class="guide-mouth" id="introMouth"></div>
+        </div>
+        <div class="guide-label">Your Guide ✨</div>
+      </div>
+      <div class="intro-avatar-wrap" id="introAvatarWrap">
+        <div class="intro-avatar-frame" id="introAvatarFrame">
+          <img id="introAvatarImg" src="images/intro/1.hi.jpeg" alt="Guide Story Card">
+        </div>
+        <div class="guide-label" id="introAvatarLabel">Saying Hi! 🕷️</div>
+      </div>
+    </div>
+
+    <!-- Initial: before adventure starts -->
+    <div id="introStartWrap" class="center">
+      <h2>A Special Voice Adventure 💛</h2>
+      <p>A tiny surprise adventure is waiting for you...</p>
+      <div class="btn-row" style="justify-content:center">
+        <button class="btn" id="introStartBtn">Start Adventure →</button>
+      </div>
+    </div>
+
+    <!-- Dialogue: TTS narration mode -->
+    <div id="introDialogueWrap" style="display:none;flex-direction:column">
+      <div class="dialogue-bubble">
+        <div class="dialogue-text" id="introText"></div>
+      </div>
+      <div class="speaking-indicator" id="speakingIndicator" style="display:none">
+        <span class="speaking-dot"></span>
+        <span class="speaking-dot"></span>
+        <span class="speaking-dot"></span>
+        <span class="speaking-label">Speaking...</span>
+      </div>
+      <div class="dialogue-dots" id="introDots"></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost btn-sm" id="introReplay" style="display:none;flex:0 0 auto;width:auto">🔊 Replay</button>
+        <button class="btn" id="introNext" style="display:none">Next →</button>
+      </div>
+      <p class="small center" id="ttsUnavailable" style="display:none;margin-top:6px">🔇 Audio narration isn't available, but you can still continue.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CALIBRATION SCREEN ═══ -->
+<section id="calibScreen" class="screen">
+  <div class="card card-glow">
+    <div class="guide-wrap">
+      <div class="guide-body" id="calibGuide">
+        <div class="guide-star">🎤</div>
+        <div class="guide-eye l"><div class="guide-pupil"></div></div>
+        <div class="guide-eye r"><div class="guide-pupil"></div></div>
+        <div class="guide-cheek l"></div>
+        <div class="guide-cheek r"></div>
+        <div class="guide-mouth" id="calibMouth"></div>
+      </div>
+    </div>
+    <h2 class="center">Let's test your superpower 🎤</h2>
+    <p class="center">We need to tune into your voice so the game works perfectly on your device.</p>
+
+    <div id="calibSteps">
+      <div class="calib-step" id="calibStep0">
+        <div class="icon">🔇</div>
+        <b>Step 1:</b> Stay quiet for a moment
+      </div>
+      <div class="calib-step" id="calibStep1">
+        <div class="icon">🗣️</div>
+        <b>Step 2:</b> Talk normally — say anything!
+      </div>
+      <div class="calib-step" id="calibStep2">
+        <div class="icon">📢</div>
+        <b>Step 3:</b> Quick loud "HA!"
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <div class="meter-labels"><span>QUIET</span><span>VOICE</span><span>JUMP</span></div>
+      <div class="voice-meter"><div class="voice-meter-fill" id="calibMeter"></div></div>
+    </div>
+    <p class="mic-status" id="calibStatus">Tap the button below to start.</p>
+
+    <div class="btn-row">
+      <button class="btn" id="calibStartBtn">🎙 Enable Microphone</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-green" id="calibDoneBtn" disabled>Continue to Training →</button>
+    </div>
+    <p class="small center" style="margin-top:8px">If microphone access is denied, you can still play using the Jump button and keyboard.</p>
+  </div>
+</section>
+
+<!-- ═══ GAME SCREEN ═══ -->
+<section id="gameScreen" class="screen">
+  <div class="hud">
+    <div class="hud-item grow" id="hudLevel">Warm-up</div>
+    <div class="hud-item" id="hudCollectedHearts">💖 0</div>
+    <div class="hud-item"><span class="hud-hearts" id="hudHearts">❤️❤️❤️</span></div>
+    <div class="hud-item">🏁 <span id="hudDist">0</span>%</div>
+  </div>
+  <div class="canvas-wrap">
+    <canvas id="canvas" width="900" height="500"></canvas>
+    <!-- Floating reaction popup for Lost / Reward images -->
+    <div class="game-popup hidden" id="gamePopup">
+      <div class="game-popup-card">
+        <img id="gamePopupImg" src="" alt="Reaction">
+        <div class="game-popup-text" id="gamePopupText">Ouch!</div>
+      </div>
+    </div>
+    <div class="game-overlay" id="gameOverlay">
+      <div class="overlay-card">
+        <div id="ovImageWrap" style="display:none;margin-bottom:12px;">
+          <img id="ovImg" style="width:84px;height:84px;border-radius:18px;object-fit:cover;border:2px solid var(--red);margin:0 auto;display:block;box-shadow:0 8px 25px rgba(239,68,68,0.35);" src="" alt="Reaction">
+        </div>
+        <div class="overlay-big" id="ovTitle">Ready?</div>
+        <p id="ovText">Use your voice to move forward. A short loud sound makes you jump!</p>
+        <div class="btn-row" style="justify-content:center">
+          <button class="btn" id="ovBtn">Start</button>
+        </div>
+      </div>
+    </div>
+    <div class="toast hidden" id="gameToast">Nice! 🎉</div>
+  </div>
+  <div class="game-btns">
+    <button class="btn btn-ghost btn-sm" id="jumpBtn">⬆ Jump</button>
+    <button class="btn btn-ghost btn-sm" id="pauseBtn">⏸ Pause</button>
+    <button class="btn btn-ghost btn-sm" id="bgmBtn">🎵 BGM: On</button>
+    <button class="btn btn-ghost btn-sm" id="skipBtn" style="display:none">Skip → Level 1</button>
+    <button class="btn btn-ghost btn-sm" id="quitBtn">✕ Quit</button>
+  </div>
+  <div class="game-voice">
+    <div class="game-voice-label">🎙 <span id="voiceLabel">Voice power</span></div>
+    <div class="voice-meter"><div class="voice-meter-fill" id="gameMeter"></div></div>
+  </div>
+  <p class="game-tip">Gentle sound = move forward • Short loud sound = jump • Space key works too</p>
+</section>
+
+<!-- ═══ MAP / ROADMAP SCREEN ═══ -->
+<section id="mapScreen" class="screen">
+  <div class="card card-glow" style="flex:1;display:flex;flex-direction:column">
+    <div class="guide-wrap">
+      <div class="guide-body celebrating" id="mapGuide">
+        <div class="guide-star">🎉</div>
+        <div class="guide-eye l"><div class="guide-pupil"></div></div>
+        <div class="guide-eye r"><div class="guide-pupil"></div></div>
+        <div class="guide-cheek l"></div>
+        <div class="guide-cheek r"></div>
+        <div class="guide-mouth open" id="mapMouth"></div>
+      </div>
+    </div>
+    <h2 class="center" id="mapTitle">Level Complete! 🎉</h2>
+    <p class="center" id="mapText">One step closer to the surprise.</p>
+    <div class="roadmap-wrap" id="roadmapWrap">
+      <svg class="road-svg" id="roadSvg" viewBox="0 0 360 480" preserveAspectRatio="none">
+        <!-- Outer road border -->
+        <path class="road-track-border" d="M 90 440 C 90 390, 270 410, 270 350 C 270 290, 90 310, 90 250 C 90 190, 270 210, 270 150 C 270 90, 180 110, 180 50" />
+        <!-- Main road asphalt track -->
+        <path class="road-track-bg" d="M 90 440 C 90 390, 270 410, 270 350 C 270 290, 90 310, 90 250 C 90 190, 270 210, 270 150 C 270 90, 180 110, 180 50" />
+        <!-- Glowing dashed center line -->
+        <path class="road-track-dash" d="M 90 440 C 90 390, 270 410, 270 350 C 270 290, 90 310, 90 250 C 90 190, 270 210, 270 150 C 270 90, 180 110, 180 50" />
+      </svg>
+      <div class="roadmap-nodes" id="roadmapNodes"></div>
+    </div>
+    <div style="margin-top:auto">
+      <button class="btn btn-green" id="mapNextBtn">Next Level →</button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ REWARD / CERTIFICATE SCREEN ═══ -->
+<section id="rewardScreen" class="screen">
+  <div class="card card-glow center" style="flex:1;display:flex;flex-direction:column;justify-content:center">
+    <div id="rewardPreReveal">
+      <div style="font-size:48px;margin-bottom:12px">💛</div>
+      <h2 id="rewardTitle">Your reward is ready...</h2>
+      <p id="rewardSub">Are you ready to see it?</p>
+      <div class="btn-row" style="justify-content:center">
+        <button class="btn btn-gold" id="revealBtn">Reveal 💛</button>
+      </div>
+    </div>
+    <div id="rewardPostReveal" style="display:none">
+      <h2>🏆 You did it, Rakshita!</h2>
+      <p>You conquered all five levels. Here's what was waiting for you all along.</p>
+      <div class="cert-frame reward-reveal"><img src="certificate.png" alt="Certificate for Rakshita"></div>
+      <p class="final-msg">"Okay... maybe the real reward wasn't the certificate. 😌<br>Here's to many more adventures together. ❤️"</p>
+      <div class="btn-row" style="justify-content:center;margin-top:16px">
+        <button class="btn btn-ghost" id="playAgainBtn">Play Again 🔁</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="confetti-wrap" id="confettiWrap"></div>
+
+</div><!-- /app -->
+
+<script>
+(()=>{
+"use strict";
+
+// ═══════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════
+const $=id=>document.getElementById(id);
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+const rand=(a,b)=>a+Math.random()*(b-a);
+const randInt=(a,b)=>Math.floor(rand(a,b+1));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const rectsHit=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+
+// ═══════════════════════════════════════════════════════════
+// CONFIGURATION
+// ═══════════════════════════════════════════════════════════
+const CFG={
+  W:900, H:500, GROUND:420,
+  GRAVITY:1800, JUMP_VEL:-700, MAX_JUMP_VEL:-550,
+  MAX_SPEED:320, ACCEL:5.5, DECEL:3.8,
+  JUMP_CD:0.5, INVULN:1.4, MAX_LIVES:3,
+  PARTICLE_MAX:60,
+  // Default calibration (fallback)
+  DEF_MOVE_T:0.012, DEF_JUMP_T:0.14,
+  PLAYER_W:36, PLAYER_H:50,
+};
+
+// ═══════════════════════════════════════════════════════════
+// LEVEL DEFINITIONS
+// ═══════════════════════════════════════════════════════════
+const LEVELS=[
+  {name:"Warm-up Ground",dist:1200,speed:190,spawn:[1.1,1.5],types:["ground"],reqHearts:0,
+   sky1:"#87CEEB",sky2:"#e8f5e9",ground:"#4caf50",ground2:"#388e3c",
+   hills:"rgba(56,142,60,.3)",cloudAlpha:.8},
+  {name:"Level 1 — Sunny Meadow 🌻",dist:3200,speed:210,spawn:[.85,1.2],types:["ground","top","gap","heart"],reqHearts:3,
+   sky1:"#87CEEB",sky2:"#e8f5e9",ground:"#4caf50",ground2:"#388e3c",
+   hills:"rgba(56,142,60,.3)",cloudAlpha:.8},
+  {name:"Level 2 — Forest Trouble 🌲",dist:3800,speed:225,spawn:[.75,1.1],types:["ground","top","moving","falling","gap","rocket","heart"],reqHearts:3,
+   sky1:"#1a5c3a",sky2:"#0d3321",ground:"#5d4037",ground2:"#3e2723",
+   hills:"rgba(27,94,32,.4)",cloudAlpha:.3},
+  {name:"Level 3 — Arrow Alley 🏹",dist:4200,speed:240,spawn:[.68,1.0],types:["ground","top","moving","arrow","rotating","gap","rocket","heart"],reqHearts:0,
+   sky1:"#ff7043",sky2:"#4a148c",ground:"#a1887f",ground2:"#6d4c41",
+   hills:"rgba(78,52,46,.35)",cloudAlpha:.4},
+  {name:"Level 4 — Chaos Canyon ⚡",dist:4800,speed:255,spawn:[.60,.92],types:["ground","top","moving","falling","arrow","gap","crusher","rotating","rocket","heart"],reqHearts:0,
+   sky1:"#4a0e8f",sky2:"#0d1b2a",ground:"#455a64",ground2:"#263238",
+   hills:"rgba(38,50,56,.4)",cloudAlpha:.2},
+  {name:"Level 5 — Final Battlefield 🔥",dist:5400,speed:270,spawn:[.54,.86],types:["ground","top","moving","falling","arrow","gap","crusher","rotating","rocket","heart"],reqHearts:0,
+   sky1:"#b71c1c",sky2:"#1a0000",ground:"#37474f",ground2:"#212121",
+   hills:"rgba(33,33,33,.5)",cloudAlpha:.15},
+];
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let state="INTRO";
+let currentLevel=0; // 0=training, 1-5=levels
+let completedLevels=0;
+let lives=3;
+let collectedHearts=0;
+let world=0, score=0;
+let gameRunning=false, paused=false;
+let lastTs=performance.now();
+let spawnTimer=0;
+let currentSpeed=0; // actual current speed (smoothed)
+let targetSpeed=0;
+let toastTimer=0;
+
+// Player
+let player={x:100,y:CFG.GROUND-CFG.PLAYER_H,w:CFG.PLAYER_W,h:CFG.PLAYER_H,
+  vy:0,onGround:true,inv:0,runCycle:0,jumpFrame:0,facing:1};
+// Obstacles, particles
+let obstacles=[], particles=[];
+// Training phases
+let trainPhase=0, trainWait=0, trainMoved=false, trainJumped=false;
+
+// ═══════════════════════════════════════════════════════════
+// AUDIO SYSTEM
+// ═══════════════════════════════════════════════════════════
+const mic={
+  ctx:null, analyser:null, stream:null, dataArr:null,
+  ready:false,
+  // Calibration
+  calibrated:false,
+  voiceFloor:0.008, voiceNormal:0.05, jumpPeak:0.20,
+  moveThreshold:CFG.DEF_MOVE_T, jumpThreshold:CFG.DEF_JUMP_T,
+  // Runtime
+  smoothRms:0, prevRms:0, rmsHist:[],
+  jumpCD:0, jumpHyst:0, spikeFrames:0, sustainFrames:0,
+  rawRms:0,
+};
+
+async function enableMic(){
+  try{
+    if(!navigator.mediaDevices?.getUserMedia) throw new Error("no mic API");
+    mic.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+    mic.ctx=new(window.AudioContext||window.webkitAudioContext)();
+    if(mic.ctx.state==="suspended") await mic.ctx.resume();
+    const src=mic.ctx.createMediaStreamSource(mic.stream);
+    mic.analyser=mic.ctx.createAnalyser();
+    mic.analyser.fftSize=1024;
+    mic.dataArr=new Uint8Array(mic.analyser.fftSize);
+    src.connect(mic.analyser);
+    mic.ready=true;
+    return true;
+  }catch(e){
+    console.warn("Mic error:",e);
+    return false;
+  }
+}
+
+function getRms(){
+  if(!mic.analyser||!mic.dataArr) return 0;
+  mic.analyser.getByteTimeDomainData(mic.dataArr);
+  let sum=0;
+  for(let i=0;i<mic.dataArr.length;i++){const n=(mic.dataArr[i]-128)/128;sum+=n*n;}
+  return Math.sqrt(sum/mic.dataArr.length);
+}
+
+// Process voice: returns {voiceLevel: 0-1, shouldJump: bool}
+function processVoice(dt){
+  const rms=getRms();
+  mic.rawRms=rms;
+
+  // Smooth RMS (responsive — 45% new signal)
+  mic.smoothRms=mic.smoothRms*.55+rms*.45;
+
+  // History (keep last 30 frames ≈ 0.5s)
+  mic.rmsHist.push(rms);
+  if(mic.rmsHist.length>30) mic.rmsHist.shift();
+
+  // Recent average (last 15 frames)
+  const recent=mic.rmsHist.slice(-15);
+  const recentAvg=recent.reduce((a,b)=>a+b,0)/recent.length;
+
+  // Cooldowns
+  if(mic.jumpCD>0) mic.jumpCD-=dt;
+  if(mic.jumpHyst>0) mic.jumpHyst-=dt;
+
+  // === Movement ===
+  const moveT=mic.moveThreshold;
+  const voiceRange=Math.max(0.01, mic.voiceNormal*1.2-moveT);
+  const rawVoice=clamp((mic.smoothRms-moveT)/voiceRange, 0, 1);
+  // Power curve: sqrt amplifies gentle voice so you don't need to shout to move
+  const voiceLevel=Math.pow(rawVoice, 0.55);
+
+  // === Jump Detection ===
+  let shouldJump=false;
+  const effectiveJumpT=mic.jumpThreshold*(1+mic.jumpHyst*0.3); // hysteresis raises threshold temporarily
+
+  // Check for spike: raw RMS exceeds threshold AND is significantly above recent average
+  const isSpike=rms>effectiveJumpT && rms>recentAvg*1.7 && rms>mic.smoothRms*1.5;
+
+  // Track rise: how many consecutive frames RMS is rising sharply
+  if(rms>mic.prevRms*1.15 && rms>effectiveJumpT*0.7){
+    mic.spikeFrames++;
+  }else{
+    mic.spikeFrames=Math.max(0,mic.spikeFrames-1);
+  }
+
+  // Track sustain: how many frames above jump threshold continuously
+  if(rms>effectiveJumpT*0.8){
+    mic.sustainFrames++;
+  }else{
+    mic.sustainFrames=0;
+  }
+
+  // Jump triggers when: spike detected, short rise (1-6 frames), not sustained too long, cooldown done
+  let jumpStrength=0.5;
+  if(isSpike && mic.spikeFrames>=1 && mic.spikeFrames<=8 && mic.sustainFrames<12 && mic.jumpCD<=0){
+    shouldJump=true;
+    const delta=rms-effectiveJumpT;
+    const maxDelta=Math.max(0.04,(mic.jumpPeak||0.20)-effectiveJumpT);
+    jumpStrength=clamp(delta/maxDelta,0,1);
+    mic.jumpCD=CFG.JUMP_CD;
+    mic.jumpHyst=0.35;
+    mic.spikeFrames=0;
+    mic.sustainFrames=0;
+  }
+
+  mic.prevRms=rms;
+  return {voiceLevel, shouldJump, jumpStrength};
+}
+
+// ═══════════════════════════════════════════════════════════
+// SOUND EFFECTS (Web Audio API)
+// ═══════════════════════════════════════════════════════════
+function sfx(name){
+  const c=mic.ctx;
+  if(!c) return;
+  try{
+    const now=c.currentTime;
+    const o=c.createOscillator(), g=c.createGain();
+    o.connect(g); g.connect(c.destination);
+    g.gain.setValueAtTime(0.001,now);
+    switch(name){
+      case"click":
+        o.type="sine";o.frequency.value=600;
+        g.gain.exponentialRampToValueAtTime(.04,now+.01);
+        g.gain.exponentialRampToValueAtTime(.001,now+.06);
+        o.start(now);o.stop(now+.08);break;
+      case"jump":
+        o.type="sine";o.frequency.setValueAtTime(440,now);o.frequency.exponentialRampToValueAtTime(880,now+.1);
+        g.gain.exponentialRampToValueAtTime(.05,now+.01);g.gain.exponentialRampToValueAtTime(.001,now+.12);
+        o.start(now);o.stop(now+.15);break;
+      case"hit":
+        o.type="square";o.frequency.value=150;
+        g.gain.exponentialRampToValueAtTime(.06,now+.01);g.gain.exponentialRampToValueAtTime(.001,now+.18);
+        o.start(now);o.stop(now+.2);break;
+      case"win":{
+        const notes=[523,659,784,1047];
+        notes.forEach((f,i)=>{
+          const o2=c.createOscillator(),g2=c.createGain();
+          o2.type="sine";o2.frequency.value=f;o2.connect(g2);g2.connect(c.destination);
+          g2.gain.setValueAtTime(.001,now+i*.12);
+          g2.gain.exponentialRampToValueAtTime(.04,now+i*.12+.02);
+          g2.gain.exponentialRampToValueAtTime(.001,now+i*.12+.25);
+          o2.start(now+i*.12);o2.stop(now+i*.12+.3);
+        });
+        // Don't start the original oscillator
+        g.gain.setValueAtTime(0,now);o.start(now);o.stop(now+.01);break;}
+      case"victory":{
+        const ch=[523,659,784];
+        ch.forEach((f,i)=>{
+          const o2=c.createOscillator(),g2=c.createGain();
+          o2.type="triangle";o2.frequency.value=f;o2.connect(g2);g2.connect(c.destination);
+          g2.gain.setValueAtTime(.001,now);
+          g2.gain.exponentialRampToValueAtTime(.03,now+.05);
+          g2.gain.exponentialRampToValueAtTime(.001,now+.8);
+          o2.start(now);o2.stop(now+.85);
+        });
+        g.gain.setValueAtTime(0,now);o.start(now);o.stop(now+.01);break;}
+      case"heartPickup":{
+        const notes=[659,784,987,1318];
+        notes.forEach((f,i)=>{
+          const o2=c.createOscillator(),g2=c.createGain();
+          o2.type="sine";o2.frequency.value=f;o2.connect(g2);g2.connect(c.destination);
+          g2.gain.setValueAtTime(.001,now+i*.06);
+          g2.gain.exponentialRampToValueAtTime(.04,now+i*.06+.01);
+          g2.gain.exponentialRampToValueAtTime(.001,now+i*.06+.12);
+          o2.start(now+i*.06);o2.stop(now+i*.06+.15);
+        });
+        g.gain.setValueAtTime(0,now);o.start(now);o.stop(now+.01);break;}
+      case"crush":
+        o.type="square";o.frequency.setValueAtTime(220,now);
+        o.frequency.exponentialRampToValueAtTime(50,now+.2);
+        g.gain.exponentialRampToValueAtTime(.08,now+.01);
+        g.gain.exponentialRampToValueAtTime(.001,now+.25);
+        o.start(now);o.stop(now+.28);break;
+      case"shock":
+        o.type="sawtooth";o.frequency.setValueAtTime(380,now);
+        o.frequency.exponentialRampToValueAtTime(140,now+.15);
+        g.gain.exponentialRampToValueAtTime(.06,now+.01);
+        g.gain.exponentialRampToValueAtTime(.001,now+.18);
+        o.start(now);o.stop(now+.2);break;
+      default:
+        o.type="sine";o.frequency.value=520;
+        g.gain.exponentialRampToValueAtTime(.03,now+.01);
+        g.gain.exponentialRampToValueAtTime(.001,now+.1);
+        o.start(now);o.stop(now+.12);
+    }
+  }catch(e){}
+}
+
+// ═══════════════════════════════════════════════════════════
+// BACKGROUND MUSIC SYNTH (Web Audio API)
+// ═══════════════════════════════════════════════════════════
+const BGM={
+  playing:false,muted:false,timer:null,step:0,
+  melody:[261.63,0,329.63,392.00,523.25,0,392.00,329.63, 220.00,0,261.63,329.63,440.00,0,329.63,261.63],
+  bass:[130.81,130.81,130.81,130.81, 110.00,110.00,110.00,110.00],
+  start(){
+    if(this.playing||this.muted) return;
+    this.playing=true; this.step=0; this.tick();
+  },
+  stop(){
+    this.playing=false;
+    if(this.timer){clearTimeout(this.timer);this.timer=null;}
+  },
+  toggleMute(){
+    this.muted=!this.muted;
+    if(this.muted) this.stop();
+    else if(state==="PLAYING"||state==="TRAINING") this.start();
+    return this.muted;
+  },
+  tick(){
+    if(!this.playing||this.muted) return;
+    const c=mic.ctx;
+    if(c&&c.state==="running"){
+      const now=c.currentTime;
+      const mNote=this.melody[this.step%16];
+      const bNote=this.bass[Math.floor((this.step%16)/2)%8];
+      if(mNote>0){
+        const o=c.createOscillator(), g=c.createGain();
+        o.type="sine"; o.frequency.value=mNote;
+        g.gain.setValueAtTime(0.012,now);
+        g.gain.exponentialRampToValueAtTime(0.001,now+0.16);
+        o.connect(g); g.connect(c.destination);
+        o.start(now); o.stop(now+0.18);
+      }
+      if(bNote>0 && this.step%2===0){
+        const o=c.createOscillator(), g=c.createGain();
+        o.type="triangle"; o.frequency.value=bNote;
+        g.gain.setValueAtTime(0.02,now);
+        g.gain.exponentialRampToValueAtTime(0.001,now+0.22);
+        o.connect(g); g.connect(c.destination);
+        o.start(now); o.stop(now+0.25);
+      }
+    }
+    this.step++;
+    this.timer=setTimeout(()=>this.tick(),165);
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// SCREEN MANAGEMENT
+// ═══════════════════════════════════════════════════════════
+const screenIds=["introScreen","calibScreen","gameScreen","mapScreen","rewardScreen"];
+function showScreen(id){
+  TTS.stop();
+  if(id!=="gameScreen") BGM.stop();
+  screenIds.forEach(s=>{
+    const el=$(s);
+    if(s===id) el.classList.add("active");
+    else el.classList.remove("active");
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// TEXT-TO-SPEECH SYSTEM (Smooth, Clear, Lovely Voice Tuning)
+// ═══════════════════════════════════════════════════════════
+const TTS_CONFIG={rate:0.92,pitch:1.0,volume:1.0};
+
+const TTS={
+  available:'speechSynthesis' in window,
+  voice:null,
+  speaking:false,
+  _onEnd:null,
+
+  pickBestVoice(){
+    if(!this.available) return null;
+    const v=speechSynthesis.getVoices();
+    if(!v||!v.length) return null;
+
+    // Filter English voices
+    const en=v.filter(x=>/en/i.test(x.lang));
+    const pool=en.length?en:v;
+
+    // Priority 1: Microsoft Natural/Neural female voices (Aria, Jenny, Sonia, Ava, Emma)
+    let best=pool.find(x=>/aria.*natural|jenny.*natural|natural.*female/i.test(x.name))
+      || pool.find(x=>/(aria|jenny|ava|emma|sonia|serena|clara|libby|olivia|natasha)/i.test(x.name))
+      || pool.find(x=>/online.*natural/i.test(x.name)&&!/guy|david|mark|george/i.test(x.name))
+      || pool.find(x=>/natural|neural/i.test(x.name)&&!/david|mark|george/i.test(x.name))
+      // Priority 2: Google Female / Natural English
+      || pool.find(x=>/google.*female/i.test(x.name))
+      || pool.find(x=>/google.*(uk|us).*english/i.test(x.name))
+      // Priority 3: Clear smooth voices (Zira, etc.), avoiding harsh synthetic voices
+      || pool.find(x=>/zira/i.test(x.name))
+      || pool.find(x=>/female|woman/i.test(x.name))
+      || pool.find(x=>/en[-_](us|gb|ca|au)/i.test(x.lang)&&!/david|mark|desktop/i.test(x.name))
+      || pool[0];
+
+    return best||pool[0]||v[0];
+  },
+
+  init(){
+    if(!this.available) return;
+    const load=()=>{
+      this.voice=this.pickBestVoice();
+    };
+    load();
+    if(speechSynthesis.onvoiceschanged!==undefined) speechSynthesis.onvoiceschanged=load;
+  },
+
+  speak(text,onEnd){
+    this.stop();
+    if(!this.available){this.speaking=false;if(onEnd) setTimeout(onEnd,100);return;}
+    if(!this.voice) this.voice=this.pickBestVoice();
+    const u=new SpeechSynthesisUtterance(text);
+    u.rate=TTS_CONFIG.rate;
+    u.pitch=TTS_CONFIG.pitch;
+    u.volume=TTS_CONFIG.volume;
+    if(this.voice) u.voice=this.voice;
+    this._onEnd=onEnd;
+    u.onstart=()=>{this.speaking=true;};
+    u.onend=()=>{this.speaking=false;if(this._onEnd){const cb=this._onEnd;this._onEnd=null;cb();}};
+    u.onerror=()=>{this.speaking=false;if(this._onEnd){const cb=this._onEnd;this._onEnd=null;cb();}};
+    speechSynthesis.speak(u);
+  },
+
+  stop(){
+    if(this.available) speechSynthesis.cancel();
+    this.speaking=false;
+    this._onEnd=null;
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// REACTION POPUPS (Lost & Reward Images)
+// ═══════════════════════════════════════════════════════════
+const LOST_IMAGES = [
+  "images/lost/WhatsApp Image 2026-09-03 at 1.02.13 PM (1).jpeg",
+  "images/lost/WhatsApp Image 2026-09-03 at 1.02.13 PM (2).jpeg",
+  "images/lost/WhatsApp Image 2026-09-03 at 1.02.17 PM.jpeg",
+  "images/lost/WhatsApp Image 2026-09-03 at 1.02.18 PM (1).jpeg",
+  "images/lost/WhatsApp Image 2026-09-03 at 1.02.18 PM (2).jpeg",
+  "images/lost/WhatsApp Image 2026-09-03 at 1.02.18 PM.jpeg",
+  "images/lost/WhatsApp Image 2026-09-03 at 1.02.19 PM (1).jpeg",
+  "images/lost/WhatsApp Image 2026-09-03 at 1.02.20 PM.jpeg"
+];
+
+const REWARD_IMAGES = [
+  "images/reward/WhatsApp Image 2026-09-03 at 1.02.14 PM.jpeg",
+  "images/reward/WhatsApp Image 2026-09-03 at 1.02.16 PM (1).jpeg",
+  "images/reward/WhatsApp Image 2026-09-03 at 1.02.16 PM.jpeg",
+  "images/reward/WhatsApp Image 2026-09-03 at 1.02.19 PM (2).jpeg"
+];
+
+let popupTimer=null;
+function triggerReactionPopup(type, customText){
+  const isLost=type==="lost";
+  const pool=isLost?LOST_IMAGES:REWARD_IMAGES;
+  const rndImg=pool[Math.floor(Math.random()*pool.length)];
+  const defaultTexts=isLost?
+    ["Ouch! 💥", "Oops! 😬", "Watch out! 🙈", "Don't give up! 👊", "That hurt! 💔", "Careful! 😅"]:
+    ["Heart collected! 💖", "Sweet! 💕", "Awesome! ✨", "Level Cleared! 🌟", "Keep it up! 💛"];
+  const text=customText||defaultTexts[Math.floor(Math.random()*defaultTexts.length)];
+
+  const pop=$("gamePopup");
+  if(!pop) return;
+  $("gamePopupImg").src=rndImg;
+  $("gamePopupText").textContent=text;
+  pop.className="game-popup "+(isLost?"popup-lost":"popup-reward");
+
+  if(popupTimer) clearTimeout(popupTimer);
+  popupTimer=setTimeout(()=>{
+    pop.className="game-popup hidden";
+  },1500);
+}
+
+// ═══════════════════════════════════════════════════════════
+// INTRO DIALOGUE (TTS-narrated with sequential images & auto-advance)
+// ═══════════════════════════════════════════════════════════
+const introDialogue=[
+  {
+    text:"Hi Rakshita! Are you ready for a little adventure?",
+    sub:"Hi Rakshita! 👋 Ready for an adventure?",
+    img:"images/intro/1.hi.jpeg",
+    label:"Saying Hi! 🕷️"
+  },
+  {
+    text:"I've prepared a special challenge just for you. Complete five levels to unlock your surprise!",
+    sub:"A special challenge... just for you! 🌟",
+    img:"images/intro/2.jpeg",
+    label:"Your Mission 🕶️"
+  },
+  {
+    text:"The obstacles won't make it easy, but your voice is your superpower. Speak gently to walk, scream to jump!",
+    sub:"Speak gently to walk • Scream to jump! 🎤",
+    img:"images/intro/3.jpeg",
+    label:"Voice Controls 🧘"
+  },
+  {
+    text:"Now let's take you to the warm-up game and test your skills. Are you ready?",
+    sub:"Heading to warm-up! Let's go! 🚀",
+    img:"images/intro/4.warmup.jpeg",
+    label:"Warm-up Time! 🐹"
+  }
+];
+let introIdx=-1;
+let introStarted=false;
+let introTimeout=null;
+let introAutoTimer=null;
+
+function initIntroDots(){
+  const wrap=$("introDots");
+  wrap.innerHTML="";
+  introDialogue.forEach(()=>{
+    const d=document.createElement("div");
+    d.className="dialogue-dot";
+    wrap.appendChild(d);
+  });
+}
+
+function startIntroDialogue(){
+  introStarted=true;
+  $("introStartWrap").style.display="none";
+  $("introDialogueWrap").style.display="flex";
+  if(!TTS.available) $("ttsUnavailable").style.display="";
+  playIntroLine(0);
+}
+
+function playIntroLine(idx){
+  if(introTimeout){clearTimeout(introTimeout);introTimeout=null;}
+  if(introAutoTimer){clearTimeout(introAutoTimer);introAutoTimer=null;}
+  TTS.stop();
+  introIdx=idx;
+  const d=introDialogue[idx];
+
+  // Update Avatar Image & Label
+  const avatarImg=$("introAvatarImg");
+  const avatarFrame=$("introAvatarFrame");
+  if(avatarImg && d.img){
+    avatarImg.style.opacity="0";
+    setTimeout(()=>{
+      avatarImg.src=d.img;
+      avatarImg.style.opacity="1";
+    },120);
+  }
+  if($("introAvatarLabel")) $("introAvatarLabel").textContent=d.label||"Your Adventure Guide ✨";
+
+  // Subtitle with re-triggered animation
+  $("introText").textContent=d.sub;
+  $("introText").style.animation="none";
+  void $("introText").offsetHeight;
+  $("introText").style.animation="";
+
+  // Dots
+  const dots=$("introDots").children;
+  for(let i=0;i<dots.length;i++){
+    dots[i].className="dialogue-dot"+(i<idx?" done":i===idx?" active":"");
+  }
+
+  // Buttons (keep next button visible and clickable for manual skip)
+  const isLast=idx===introDialogue.length-1;
+  $("introNext").textContent=isLast?"Let's Warm Up! →":"Next →";
+  if(isLast) $("introNext").classList.add("btn-green");
+  else $("introNext").classList.remove("btn-green");
+  $("introNext").style.display="";
+
+  if(TTS.available){
+    $("introReplay").style.display="none";
+    $("speakingIndicator").style.display="flex";
+    if(avatarFrame) avatarFrame.classList.add("talking");
+    if($("introGuide")) $("introGuide").classList.add("talking");
+    if($("introMouth")) $("introMouth").classList.add("open");
+
+    const delay=d.pause||0;
+    introTimeout=setTimeout(()=>{
+      introTimeout=null;
+      TTS.speak(d.text,()=>{
+        if(avatarFrame) avatarFrame.classList.remove("talking");
+        if($("introGuide")) $("introGuide").classList.remove("talking");
+        if($("introMouth")) $("introMouth").classList.remove("open");
+        $("speakingIndicator").style.display="none";
+        $("introReplay").style.display="";
+        // Automated progression: Once speech completes, auto-advance without waiting for user click
+        if(introAutoTimer) clearTimeout(introAutoTimer);
+        introAutoTimer=setTimeout(()=>{
+          nextIntro();
+        },750);
+      });
+    },delay);
+  }else{
+    $("speakingIndicator").style.display="none";
+    $("introReplay").style.display="none";
+    if(avatarFrame) avatarFrame.classList.add("talking");
+    if($("introGuide")) $("introGuide").classList.add("talking");
+    if($("introMouth")) $("introMouth").classList.add("open");
+    setTimeout(()=>{
+      if(avatarFrame) avatarFrame.classList.remove("talking");
+      if($("introGuide")) $("introGuide").classList.remove("talking");
+      if($("introMouth")) $("introMouth").classList.remove("open");
+    },600);
+    // Auto-advance fallback when TTS is unavailable
+    if(introAutoTimer) clearTimeout(introAutoTimer);
+    introAutoTimer=setTimeout(()=>{
+      nextIntro();
+    },3000);
+  }
+}
+
+function nextIntro(){
+  if(introTimeout){clearTimeout(introTimeout);introTimeout=null;}
+  if(introAutoTimer){clearTimeout(introAutoTimer);introAutoTimer=null;}
+  sfx("click");
+  TTS.stop();
+  const avatarFrame=$("introAvatarFrame");
+  if(avatarFrame) avatarFrame.classList.remove("talking");
+  if($("introGuide")) $("introGuide").classList.remove("talking");
+  if($("introMouth")) $("introMouth").classList.remove("open");
+
+  if(introIdx<introDialogue.length-1){
+    playIntroLine(introIdx+1);
+  }else{
+    state="CALIBRATION";
+    showScreen("calibScreen");
+  }
+}
+
+function replayIntro(){
+  if(introAutoTimer){clearTimeout(introAutoTimer);introAutoTimer=null;}
+  sfx("click");
+  if(introIdx>=0) playIntroLine(introIdx);
+}
+
+// ═══════════════════════════════════════════════════════════
+// CALIBRATION
+// ═══════════════════════════════════════════════════════════
+let calibPhase=-1; // -1=not started, 0=quiet, 1=voice, 2=loud, 3=done
+let calibTimer=0;
+let calibSamples=[];
+let calibActive=false;
+
+async function startCalibration(){
+  $("calibStartBtn").disabled=true;
+  $("calibStatus").textContent="Requesting microphone access...";
+
+  const ok=await enableMic();
+  if(!ok){
+    $("calibStatus").textContent="Microphone not available — no worries! You can use the Jump button and Space key. 😊";
+    $("calibStartBtn").textContent="🎙 Try Again";
+    $("calibStartBtn").disabled=false;
+    $("calibDoneBtn").disabled=false;
+    return;
+  }
+
+  $("calibStartBtn").style.display="none";
+  $("calibStatus").textContent="Great! Microphone is connected. 🎤";
+  sfx("click");
+
+  // Start calibration sequence
+  calibActive=true;
+  calibPhase=0;
+  calibTimer=2.5; // 2.5 seconds for quiet
+  calibSamples=[];
+  $("calibStep0").classList.add("active");
+  $("calibStatus").textContent="Stay quiet for a moment... 🤫";
+}
+
+function updateCalibration(dt){
+  if(!calibActive||calibPhase<0||calibPhase>2) return;
+
+  const rms=getRms();
+  $("calibMeter").style.width=Math.min(100,rms/.2*100)+"%";
+
+  if(calibPhase===0){
+    // Measuring ambient noise
+    calibSamples.push(rms);
+    calibTimer-=dt;
+    if(calibTimer<=0){
+      // Average ambient
+      mic.voiceFloor=calibSamples.reduce((a,b)=>a+b,0)/calibSamples.length;
+      $("calibStep0").classList.remove("active");
+      $("calibStep0").classList.add("done");
+      // Next: voice
+      calibPhase=1;
+      calibTimer=3;
+      calibSamples=[];
+      $("calibStep1").classList.add("active");
+      $("calibStatus").textContent="Now talk normally — say anything you like! 🗣️";
+      sfx("click");
+    }
+  }else if(calibPhase===1){
+    // Measuring voice
+    calibSamples.push(rms);
+    calibTimer-=dt;
+    if(calibTimer<=0){
+      // Get average voice level (top 40% of samples to avoid quiet moments)
+      const sorted=[...calibSamples].sort((a,b)=>b-a);
+      const topN=Math.max(1,Math.floor(sorted.length*.4));
+      mic.voiceNormal=sorted.slice(0,topN).reduce((a,b)=>a+b,0)/topN;
+      $("calibStep1").classList.remove("active");
+      $("calibStep1").classList.add("done");
+      // Next: loud
+      calibPhase=2;
+      calibTimer=5; // max wait 5s for a shout
+      calibSamples=[];
+      $("calibStep2").classList.add("active");
+      $("calibStatus").textContent='Give a quick loud "HA!" 📢';
+      sfx("click");
+    }
+  }else if(calibPhase===2){
+    // Waiting for a loud spike
+    calibSamples.push(rms);
+    calibTimer-=dt;
+    const peak=Math.max(...calibSamples);
+    // Detect if we got a spike significantly above voice
+    if(peak>mic.voiceNormal*1.6 && calibSamples.length>10){
+      mic.jumpPeak=peak;
+      finishCalibration();
+    }else if(calibTimer<=0){
+      // Timeout — use defaults based on voice level
+      mic.jumpPeak=mic.voiceNormal*2.2;
+      finishCalibration();
+    }
+  }
+}
+
+function finishCalibration(){
+  calibPhase=3;
+  calibActive=false;
+  $("calibStep2").classList.remove("active");
+  $("calibStep2").classList.add("done");
+
+  // Calculate thresholds (low move threshold so gentle voice works)
+  mic.moveThreshold=Math.max(0.005, mic.voiceFloor*1.2);
+  mic.jumpThreshold=Math.max(mic.voiceNormal*1.8, mic.jumpPeak*0.55);
+  // Ensure jump > move
+  if(mic.jumpThreshold<mic.moveThreshold*2.5) mic.jumpThreshold=mic.moveThreshold*2.5;
+  mic.calibrated=true;
+
+  $("calibStatus").textContent="Calibration complete! You're ready. ✅";
+  $("calibDoneBtn").disabled=false;
+  const g=$("calibGuide");
+  g.classList.add("celebrating");
+  setTimeout(()=>g.classList.remove("celebrating"),1500);
+  sfx("win");
+}
+
+// ═══════════════════════════════════════════════════════════
+// PARTICLES
+// ═══════════════════════════════════════════════════════════
+function emitParticles(x,y,count,colors,velScale=1){
+  for(let i=0;i<count&&particles.length<CFG.PARTICLE_MAX;i++){
+    particles.push({
+      x, y,
+      vx:rand(-150,150)*velScale,
+      vy:rand(-250,-50)*velScale,
+      life:rand(.4,.9),
+      maxLife:rand(.4,.9),
+      size:rand(3,7),
+      color:colors[Math.floor(Math.random()*colors.length)]
+    });
+  }
+}
+
+function updateParticles(dt){
+  for(const p of particles){
+    p.x+=p.vx*dt; p.y+=p.vy*dt;
+    p.vy+=600*dt;
+    p.life-=dt;
+  }
+  particles=particles.filter(p=>p.life>0);
+}
+
+function drawParticles(ctx){
+  for(const p of particles){
+    ctx.globalAlpha=clamp(p.life/p.maxLife,0,1);
+    ctx.fillStyle=p.color;
+    ctx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size);
+  }
+  ctx.globalAlpha=1;
+}
+
+// ═══════════════════════════════════════════════════════════
+// CONFETTI (HTML overlay for celebrations)
+// ═══════════════════════════════════════════════════════════
+function spawnConfetti(count=40){
+  const wrap=$("confettiWrap");
+  const colors=["#8b5cf6","#ec4899","#f59e0b","#22c55e","#06b6d4","#ef4444","#fff"];
+  for(let i=0;i<count;i++){
+    const el=document.createElement("div");
+    el.className="confetti-piece";
+    el.style.left=rand(5,95)+"%";
+    el.style.top="-10px";
+    el.style.width=rand(6,12)+"px";
+    el.style.height=rand(6,12)+"px";
+    el.style.background=colors[randInt(0,colors.length-1)];
+    el.style.animationDuration=rand(1.5,3.5)+"s";
+    el.style.animationDelay=rand(0,.8)+"s";
+    wrap.appendChild(el);
+    setTimeout(()=>el.remove(),4000);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PLAYER
+// ═══════════════════════════════════════════════════════════
+function resetPlayer(){
+  player.x=100; player.y=CFG.GROUND-CFG.PLAYER_H;
+  player.vy=0; player.onGround=true; player.inv=0;
+  player.runCycle=0; player.jumpFrame=0;
+}
+
+function doJump(strength=0.5){
+  if(!gameRunning||paused) return;
+  if(player.onGround){
+    const minJ=-540;
+    const maxJ=-760;
+    player.vy=lerp(minJ,maxJ,strength);
+    player.onGround=false;
+    player.jumpFrame=1;
+    emitParticles(player.x+player.w/2,player.y+player.h,6,["#fbbf24","#f59e0b","#fff"]);
+    sfx("jump");
+  }
+}
+
+function updatePlayer(dt){
+  // Gravity
+  player.vy+=CFG.GRAVITY*dt;
+  player.y+=player.vy*dt;
+
+  // Find platform currently beneath player center
+  const pMidX=player.x+player.w/2;
+  const plat=platforms.find(p=>p.x<=pMidX && pMidX<=p.x+p.w);
+
+  if(plat){
+    const targetGround=plat.y-player.h;
+    // Land on top surface
+    if(player.y>=targetGround && player.vy>=0 && player.y<=targetGround+28){
+      player.y=targetGround;
+      player.vy=0;
+      player.onGround=true;
+      player.jumpFrame=0;
+    }else if(player.y>targetGround+28 && player.x+player.w>plat.x && player.x<plat.x+plat.w){
+      // Hit platform side wall (jump wasn't high enough)
+      if(player.inv<=0){
+        doDamage();
+        sfx("hit");
+        triggerReactionPopup("lost", "Wall hit! 💥");
+        showToast("Hit platform wall! 💥");
+      }
+      player.vy=Math.max(120, player.vy); // fall downward
+    }
+  }else{
+    // Over a pit/gap between platforms!
+    player.onGround=false;
+  }
+
+  // Check if player fell into pit below screen
+  if(player.y>CFG.H-10){
+    sfx("crush");
+    doDamage();
+    triggerReactionPopup("lost", "Fell into pit! 💥");
+    emitParticles(player.x+player.w/2,CFG.H-20,12,["#ef4444","#f97316","#374151"],1.3);
+    showToast("Fell into pit! 💥");
+
+    // Respawn safely on nearest platform to left or start platform
+    const prevPlat=[...platforms].filter(p=>p.x<player.x+60 && p.x+p.w>20).pop()||platforms[0];
+    if(prevPlat){
+      player.x=clamp(prevPlat.x+25, 60, CFG.W/3);
+      player.y=prevPlat.y-player.h;
+      player.vy=0;
+      player.onGround=true;
+      player.inv=CFG.INVULN*1.2;
+    }
+  }
+
+  // Check Spike Collisions & Overhead Hazards
+  if(player.inv<=0){
+    for(const p of platforms){
+      // Ground Spikes ▲
+      if(p.spikes && p.spikes.length>0){
+        for(const sp of p.spikes){
+          const spW=sp.count*18;
+          const spikeRect={x:p.x+sp.xOffset, y:p.y-18, w:spW, h:18};
+          if(rectsHit(player,spikeRect)){
+            doDamage();
+            sfx("hit");
+            triggerReactionPopup("lost", "Spikes! 💥");
+            emitParticles(player.x+player.w/2,p.y-10,8,["#ef4444","#fbbf24","#fff"]);
+            showToast("Hit spikes! 💥");
+            player.vy=-220; // bounce off spikes
+            break;
+          }
+        }
+      }
+
+      // Overhead Ceiling Blocks & Spikes ▼
+      if(p.overhead){
+        const oh=p.overhead;
+        const ox=p.x+(oh.xOffset||20);
+        const ow=oh.w||110;
+        const ohY=oh.y||40;
+        const ohH=(oh.h||65)+(oh.spikes?18:0);
+        const ohRect={x:ox, y:ohY, w:ow, h:ohH};
+        if(rectsHit(player,ohRect)){
+          player.vy=Math.max(220,player.vy+120); // bounce down sharply
+          if(player.inv<=0){
+            doDamage();
+            sfx("shock");
+            triggerReactionPopup("lost", "Too high! ⚡");
+            emitParticles(player.x+player.w/2,ohY+ohH,8,["#ef4444","#38bdf8","#fff"]);
+            showToast("Hit overhead spikes! ⚡");
+          }
+        }
+      }
+
+      // Heart Collectibles 💖
+      if(p.heart && !p.heartCollected){
+        const hx=p.x+(p.heartX||p.w/2)-17, hy=(p.heartY||p.y-50)-17;
+        const heartRect={x:hx, y:hy, w:34, h:34};
+        if(rectsHit(player,heartRect)){
+          p.heartCollected=true;
+          collectedHearts++;
+          sfx("heartPickup");
+          triggerReactionPopup("reward", "Heart collected! 💖");
+          emitParticles(hx+17,hy+17,12,["#ec4899","#f472b6","#fbbf24","#fff"]);
+          updateHUD();
+          const L=LEVELS[currentLevel];
+          const req=L?L.reqHearts:0;
+          showToast(req>0?`Heart collected! 💖 (${collectedHearts}/${req})`:`Heart collected! 💖 (${collectedHearts})`);
+        }
+      }
+    }
+  }
+
+  // Invulnerability
+  if(player.inv>0) player.inv-=dt;
+
+  // Run animation
+  if(currentSpeed>30 && player.onGround){
+    player.runCycle+=dt*currentSpeed*0.04;
+  }
+}
+
+function drawPlayerChar(ctx){
+  ctx.save();
+  const px=player.x, py=player.y;
+
+  // Invulnerability flash
+  if(player.inv>0 && Math.floor(player.inv*10)%2===0){
+    ctx.globalAlpha=0.35;
+  }
+
+  // Soft ground shadow when on or near a platform
+  if(player.onGround || py < CFG.GROUND){
+    ctx.fillStyle="rgba(0,0,0,0.22)";
+    ctx.beginPath();
+    ctx.ellipse(px+18, py+50, 16, 4, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  const bodyColor="#3b82f6";
+  const skinColor="#fcd9b6";
+  const hairColor="#5b2c14";
+
+  // Subtle silhouette shadow for high visibility against any background
+  ctx.shadowColor="rgba(0,0,0,0.4)";
+  ctx.shadowBlur=5;
+
+  // Legs (animated when running)
+  const legOffset=player.onGround?Math.sin(player.runCycle)*6:0;
+  ctx.fillStyle="#1d4ed8";
+  ctx.fillRect(px+7, py+37, 9, 13+legOffset);
+  ctx.fillRect(px+20, py+37, 9, 13-legOffset);
+
+  // Shoes
+  ctx.fillStyle="#111827";
+  ctx.fillRect(px+6, py+47+legOffset, 11, 4);
+  ctx.fillRect(px+19, py+47-legOffset, 11, 4);
+
+  // Body
+  ctx.fillStyle=bodyColor;
+  ctx.beginPath();
+  ctx.roundRect(px+3, py+18, 30, 23, 6);
+  ctx.fill();
+  ctx.strokeStyle="#1e40af";
+  ctx.lineWidth=1.5;
+  ctx.stroke();
+
+  // Cape / scarf (flowing animated element)
+  ctx.fillStyle="#ec4899";
+  ctx.beginPath();
+  ctx.moveTo(px+4,py+20);
+  ctx.lineTo(px-7+Math.sin(player.runCycle*.5)*4, py+35);
+  ctx.lineTo(px+4, py+32);
+  ctx.fill();
+
+  // Head
+  ctx.fillStyle=skinColor;
+  ctx.beginPath();
+  ctx.arc(px+18, py+12, 14, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle="#e2b897";
+  ctx.lineWidth=1;
+  ctx.stroke();
+
+  // Hair
+  ctx.fillStyle=hairColor;
+  ctx.beginPath();
+  ctx.arc(px+18, py+8, 14, Math.PI, Math.PI*2);
+  ctx.fill();
+  // Hair tuft
+  ctx.beginPath();
+  ctx.ellipse(px+25,py+2,5,7,0.3,0,Math.PI*2);
+  ctx.fill();
+
+  // Eyes (blink every ~3s)
+  const blink=Math.sin(performance.now()/1000*1.1)>0.97;
+  ctx.fillStyle="#fff";
+  ctx.beginPath();
+  ctx.ellipse(px+13, py+12, 4.5, blink?1:5.5, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(px+23, py+12, 4.5, blink?1:5.5, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  if(!blink){
+    ctx.fillStyle="#1e1b4b";
+    ctx.beginPath();
+    ctx.arc(px+14, py+12.5, 2.2, 0, Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(px+22, py+12.5, 2.2, 0, Math.PI*2);
+    ctx.fill();
+    // Eye sparkle
+    ctx.fillStyle="#fff";
+    ctx.beginPath(); ctx.arc(px+13.2, py+11.5, 1, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px+21.2, py+11.5, 1, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Rosy cheeks
+  ctx.fillStyle="rgba(244,114,182,0.45)";
+  ctx.beginPath(); ctx.arc(px+9, py+16, 2.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(px+27, py+16, 2.5, 0, Math.PI*2); ctx.fill();
+
+  // Mouth
+  ctx.strokeStyle="#7c2d12";
+  ctx.lineWidth=1.8;
+  ctx.beginPath();
+  if(!player.onGround){
+    // Open mouth (jumping — excited)
+    ctx.fillStyle="#b91c1c";
+    ctx.arc(px+18, py+18, 3.5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+  }else{
+    // Happy smile
+    ctx.arc(px+18, py+15.5, 4.5, 0.1, Math.PI-0.1);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════
+// PLATFORM & LEVEL PATTERN ENGINE (Scream Go Hero style)
+// ═══════════════════════════════════════════════════════════
+let platforms=[];
+let patternIdx=0;
+
+const LEVEL_PATTERNS=[
+  // Level 0 (Warm-up / Tutorial — wide platforms, small gaps, teaching walk & jump)
+  [
+    {w:440, y:420, gap:75},
+    {w:390, y:420, gap:80},
+    {w:420, y:420, gap:75},
+    {w:400, y:420, gap:80}
+  ],
+  // Level 1 (Sunny Meadow 🌻 — Wide platforms, gentle gaps, 3 collectible hearts, minimal single spike)
+  [
+    {w:360, y:420, gap:85},
+    {w:320, y:420, gap:95, heart:true},
+    {w:340, y:390, gap:90},
+    {w:300, y:420, gap:105, heart:true},
+    {w:350, y:420, gap:90, spikes:[{xOffset:160, count:1}]},
+    {w:320, y:380, gap:100, heart:true},
+    {w:330, y:420, gap:95},
+    {w:310, y:420, gap:100, heart:true}
+  ],
+  // Level 2 (Forest Trouble 🌲 — Medium platforms, single spikes, raised platforms, 3+ hearts)
+  [
+    {w:260, y:420, gap:115, spikes:[{xOffset:120, count:1}]},
+    {w:230, y:360, gap:120, heart:true},
+    {w:250, y:420, gap:115, spikes:[{xOffset:110, count:1}]},
+    {w:220, y:370, gap:125, heart:true},
+    {w:260, y:420, gap:120, spikes:[{xOffset:130, count:1}]},
+    {w:230, y:360, gap:130, heart:true},
+    {w:250, y:420, gap:120, spikes:[{xOffset:100, count:1}], heart:true},
+    {w:240, y:380, gap:125}
+  ],
+  // Level 3 (Arrow Alley 🏹 — Precision: narrower platforms, double spikes, overhead ceiling hazards)
+  [
+    {w:210, y:420, gap:135, spikes:[{xOffset:90, count:2}]},
+    {w:180, y:350, gap:140},
+    {w:190, y:420, gap:145, overhead:{y:50, xOffset:30, w:120, h:65, spikes:true}},
+    {w:170, y:340, gap:140, spikes:[{xOffset:70, count:1}]},
+    {w:200, y:420, gap:145, spikes:[{xOffset:85, count:2}]},
+    {w:180, y:360, gap:140},
+    {w:190, y:420, gap:150, overhead:{y:55, xOffset:25, w:130, h:60, spikes:true}},
+    {w:170, y:350, gap:140, spikes:[{xOffset:65, count:2}]}
+  ],
+  // Level 4 (Chaos Canyon ⚡ — Narrow platforms, wide gaps, spike combinations, low ceilings)
+  [
+    {w:160, y:420, gap:160, spikes:[{xOffset:55, count:2}]},
+    {w:140, y:340, gap:165, overhead:{y:45, xOffset:15, w:105, h:70, spikes:true}},
+    {w:150, y:420, gap:160, spikes:[{xOffset:40, count:3}]},
+    {w:130, y:320, gap:170},
+    {w:160, y:430, gap:160, spikes:[{xOffset:50, count:2}], overhead:{y:40, xOffset:20, w:110, h:70, spikes:true}},
+    {w:140, y:350, gap:170},
+    {w:150, y:420, gap:165, spikes:[{xOffset:45, count:3}]},
+    {w:135, y:330, gap:170, overhead:{y:50, xOffset:15, w:95, h:70, spikes:true}}
+  ],
+  // Level 5 (Final Battlefield 🔥 — Arcade challenge: narrow pillars, large gaps, spikes, high/low variation)
+  [
+    {w:130, y:420, gap:175, spikes:[{xOffset:35, count:2}]},
+    {w:120, y:330, gap:180, overhead:{y:35, xOffset:15, w:90, h:80, spikes:true}},
+    {w:115, y:430, gap:185, spikes:[{xOffset:30, count:2}]},
+    {w:125, y:310, gap:175},
+    {w:130, y:420, gap:185, spikes:[{xOffset:30, count:3}], overhead:{y:40, xOffset:20, w:85, h:75, spikes:true}},
+    {w:115, y:340, gap:180},
+    {w:125, y:440, gap:185, spikes:[{xOffset:35, count:2}]},
+    {w:120, y:320, gap:180, overhead:{y:35, xOffset:15, w:85, h:80, spikes:true}}
+  ]
+];
+
+function resetPlatforms(){
+  platforms=[];
+  patternIdx=0;
+  let curX=0;
+  const startPlat={x:0, w:380, y:CFG.GROUND, spikes:[], overhead:null, heart:false, flag:false};
+  platforms.push(startPlat);
+  curX+=startPlat.w;
+  while(curX<CFG.W+800){
+    curX=appendNextPatternPlatform(curX);
+  }
+}
+
+function appendNextPatternPlatform(startX){
+  const patterns=LEVEL_PATTERNS[currentLevel]||LEVEL_PATTERNS[0];
+  const pSpec=patterns[patternIdx%patterns.length];
+  patternIdx++;
+
+  const gap=pSpec.gap||100;
+  const platX=startX+gap;
+  const L=LEVELS[currentLevel];
+
+  if(platX>=L.dist-400 && !platforms.some(p=>p.flag)){
+    const finishPlat={x:platX, w:550, y:CFG.GROUND, spikes:[], overhead:null, heart:false, flag:true};
+    platforms.push(finishPlat);
+    return platX+finishPlat.w;
+  }
+
+  const plat={
+    x:platX,
+    w:pSpec.w||200,
+    y:pSpec.y||CFG.GROUND,
+    spikes:pSpec.spikes||[],
+    overhead:pSpec.overhead||null,
+    heart:pSpec.heart||false,
+    heartCollected:false,
+    flag:false
+  };
+  platforms.push(plat);
+  return platX+plat.w;
+}
+
+function updatePlatforms(dt){
+  for(const p of platforms){
+    p.x-=currentSpeed*dt;
+  }
+  platforms=platforms.filter(p=>p.x+p.w>-200);
+
+  const lastP=platforms[platforms.length-1];
+  if(lastP && lastP.x<CFG.W+600){
+    appendNextPatternPlatform(lastP.x+lastP.w);
+  }
+}
+
+function drawPlatforms(ctx, levelIdx){
+  const L=LEVELS[levelIdx]||LEVELS[0];
+
+  for(const p of platforms){
+    if(p.x+p.w<-100 || p.x>CFG.W+100) continue;
+    ctx.save();
+
+    // 1. Platform Pillar Body (Geometric solid column down to screen bottom)
+    ctx.fillStyle=L.ground;
+    ctx.fillRect(p.x, p.y, p.w, CFG.H-p.y);
+
+    // Platform Top Surface Accent
+    ctx.fillStyle=L.ground2;
+    ctx.fillRect(p.x, p.y, p.w, 6);
+
+    // Bevel side borders for crisp geometric contrast
+    ctx.fillStyle="rgba(0,0,0,0.22)";
+    ctx.fillRect(p.x, p.y+6, 4, CFG.H-p.y-6);
+    ctx.fillRect(p.x+p.w-4, p.y+6, 4, CFG.H-p.y-6);
+
+    // 2. Ground Spikes ▲
+    if(p.spikes && p.spikes.length>0){
+      ctx.fillStyle="#ef4444";
+      for(const sp of p.spikes){
+        const sx=p.x+sp.xOffset;
+        const spikeW=18;
+        for(let i=0;i<sp.count;i++){
+          const spX=sx+i*spikeW;
+          ctx.beginPath();
+          ctx.moveTo(spX, p.y);
+          ctx.lineTo(spX+spikeW/2, p.y-18);
+          ctx.lineTo(spX+spikeW, p.y);
+          ctx.fill();
+          ctx.strokeStyle="#991b1b";
+          ctx.lineWidth=1.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 3. Overhead Ceiling Blocks & Downward Spikes ▼
+    if(p.overhead){
+      const oh=p.overhead;
+      const ox=p.x+(oh.xOffset||20);
+      const ow=oh.w||110;
+      const ohY=oh.y||40;
+      const ohH=oh.h||65;
+
+      // Solid block
+      ctx.fillStyle="#1e293b";
+      ctx.fillRect(ox, ohY, ow, ohH);
+      ctx.fillStyle="#475569";
+      ctx.fillRect(ox, ohY+ohH-4, ow, 4);
+
+      // Downward Spikes ▼ (Scream Go Hero teeth style)
+      if(oh.spikes){
+        ctx.fillStyle="#ef4444";
+        const spikeW=18;
+        for(let spX=ox; spX<ox+ow-6; spX+=spikeW){
+          ctx.beginPath();
+          ctx.moveTo(spX, ohY+ohH);
+          ctx.lineTo(spX+spikeW/2, ohY+ohH+18);
+          ctx.lineTo(spX+spikeW, ohY+ohH);
+          ctx.fill();
+          ctx.strokeStyle="#991b1b";
+          ctx.lineWidth=1.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 4. Collectible Heart 💖
+    if(p.heart && !p.heartCollected){
+      const hx=p.x+(p.heartX||p.w/2), hy=(p.heartY||p.y-50)+Math.sin(performance.now()/300)*5;
+      ctx.fillStyle="rgba(244,114,182,0.35)";
+      ctx.beginPath(); ctx.arc(hx, hy, 18, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle="#ec4899";
+      ctx.beginPath();
+      ctx.moveTo(hx, hy+9);
+      ctx.bezierCurveTo(hx-14, hy-5, hx-14, hy-16, hx, hy-9);
+      ctx.bezierCurveTo(hx+14, hy-16, hx+14, hy-5, hx, hy+9);
+      ctx.fill();
+      ctx.fillStyle="#fff";
+      ctx.beginPath(); ctx.arc(hx-4, hy-5, 2.5, 0, Math.PI*2); ctx.fill();
+    }
+
+    // 5. Checkered Finish Flag 🏁
+    if(p.flag){
+      const flagX=p.x+100;
+      ctx.fillStyle="#111827";
+      ctx.fillRect(flagX, p.y-120, 6, 120);
+      const flagW=54, flagH=34;
+      ctx.fillStyle="#fff";
+      ctx.fillRect(flagX+6, p.y-115, flagW, flagH);
+      ctx.fillStyle="#111827";
+      for(let r=0;r<4;r++){
+        for(let c=0;c<5;c++){
+          if((r+c)%2===0){
+            ctx.fillRect(flagX+6+c*10.8, p.y-115+r*8.5, 10.8, 8.5);
+          }
+        }
+      }
+    }
+
+    ctx.restore();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DAMAGE / LIFE SYSTEM
+// ═══════════════════════════════════════════════════════════
+function doDamage(){
+  if(player.inv>0) return;
+  lives--;
+  player.inv=CFG.INVULN;
+  emitParticles(player.x+player.w/2, player.y+player.h/2, 10, ["#ef4444","#fbbf24","#fff"], 1.2);
+  sfx("hit");
+  const cw=$("canvas").parentElement;
+  cw.classList.remove("screen-shake");void cw.offsetHeight;
+  cw.classList.add("screen-shake");
+  setTimeout(()=>cw.classList.remove("screen-shake"),400);
+  updateHUD();
+
+  const rndLost=LOST_IMAGES[Math.floor(Math.random()*LOST_IMAGES.length)];
+
+  if(lives<=0){
+    gameRunning=false;
+    triggerReactionPopup("lost", "Out of lives! 💔");
+    if($("ovImg") && $("ovImageWrap")){
+      $("ovImg").src=rndLost;
+      $("ovImageWrap").style.display="block";
+    }
+    showGameOverlay(
+      "Oh no! 💥",
+      "The battlefield got you. But the adventure isn't over!",
+      "Try Again"
+    );
+    showToast("Don't give up, Rakshita! 💪");
+  }else{
+    triggerReactionPopup("lost", lives===2?"Ouch! Be careful! 😅":"That was close! 😬");
+    showToast(lives===2?"Ouch! Be careful! 😅":"That was close! 😬");
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// BACKGROUND RENDERING
+// ═══════════════════════════════════════════════════════════
+function drawBackground(ctx, levelIdx){
+  const L=LEVELS[levelIdx]||LEVELS[0];
+
+  // Sky gradient
+  const grad=ctx.createLinearGradient(0,0,0,CFG.H);
+  grad.addColorStop(0,L.sky1);
+  grad.addColorStop(1,L.sky2);
+  ctx.fillStyle=grad;
+  ctx.fillRect(0,0,CFG.W,CFG.H);
+
+  // Clouds (parallax)
+  ctx.fillStyle=`rgba(255,255,255,${L.cloudAlpha})`;
+  for(let i=0;i<5;i++){
+    const cx=((i*210-world*0.06)%1100+1100)%1100-100;
+    const cy=50+(i%3)*40+i*8;
+    ctx.beginPath();
+    ctx.arc(cx,cy,22,0,Math.PI*2);
+    ctx.arc(cx+28,cy+3,17,0,Math.PI*2);
+    ctx.arc(cx-22,cy+5,15,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  // Distant hills (parallax)
+  ctx.fillStyle=L.hills;
+  ctx.beginPath();
+  ctx.moveTo(0,380);
+  for(let x=0;x<=CFG.W;x+=100){
+    const hx=((x-world*0.12)%600+600)%600;
+    ctx.quadraticCurveTo(x+50, 310+Math.sin(hx*0.02)*50, x+100, 380);
+  }
+  ctx.lineTo(CFG.W,CFG.H);ctx.lineTo(0,CFG.H);ctx.fill();
+
+  // Level-specific decorations
+  if(levelIdx===2){
+    // Forest: tree silhouettes
+    ctx.fillStyle="rgba(27,94,32,.25)";
+    for(let i=0;i<8;i++){
+      const tx=((i*140-world*0.15)%1200+1200)%1200-60;
+      ctx.beginPath();
+      ctx.moveTo(tx,CFG.GROUND);
+      ctx.lineTo(tx+15,280);
+      ctx.lineTo(tx+30,CFG.GROUND);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(tx+15,290,28,0,Math.PI*2);
+      ctx.fill();
+    }
+  }
+  if(levelIdx===5){
+    // Final: ember particles rising
+    ctx.fillStyle="rgba(239,68,68,.4)";
+    for(let i=0;i<12;i++){
+      const ex=((i*85+world*0.2)%CFG.W+CFG.W)%CFG.W;
+      const ey=CFG.GROUND-10-((performance.now()/1000*40+i*50)%350);
+      ctx.beginPath();
+      ctx.arc(ex,ey,rand(1.5,3),0,Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  // Top screen boundary hazard accent
+  ctx.fillStyle="rgba(239,68,68,0.2)";
+  ctx.fillRect(0,0,CFG.W,12);
+  ctx.fillStyle="#ef4444";
+  for(let x=0;x<CFG.W;x+=24){
+    ctx.beginPath();
+    ctx.moveTo(x,0);
+    ctx.lineTo(x+12,10);
+    ctx.lineTo(x+24,0);
+    ctx.fill();
+  }
+
+  // Deep Pit / Abyss Floor
+  const pitGrad=ctx.createLinearGradient(0,CFG.H-70,0,CFG.H);
+  pitGrad.addColorStop(0,"rgba(15,23,42,0)");
+  pitGrad.addColorStop(1,levelIdx===5?"rgba(185,28,28,0.5)":"rgba(15,23,42,0.9)");
+  ctx.fillStyle=pitGrad;
+  ctx.fillRect(0,CFG.H-70,CFG.W,70);
+
+  // Pit bottom hazard spikes
+  ctx.fillStyle=levelIdx===5?"#dc2626":"#1e293b";
+  const pitSpikeW=14;
+  for(let sx=0;sx<CFG.W;sx+=pitSpikeW){
+    ctx.beginPath();
+    ctx.moveTo(sx,CFG.H);
+    ctx.lineTo(sx+pitSpikeW/2,CFG.H-16);
+    ctx.lineTo(sx+pitSpikeW,CFG.H);
+    ctx.fill();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// HUD & OVERLAYS
+// ═══════════════════════════════════════════════════════════
+function updateHUD(){
+  const L=LEVELS[currentLevel];
+  $("hudLevel").textContent=L?L.name:"Game";
+  let hearts="";
+  for(let i=0;i<CFG.MAX_LIVES;i++) hearts+=i<lives?"❤️":"🖤";
+  $("hudHearts").innerHTML=hearts;
+  const pct=L?Math.floor(clamp(score/L.dist,0,1)*100):0;
+  $("hudDist").textContent=pct;
+
+  const req=L?L.reqHearts:0;
+  const hEl=$("hudCollectedHearts");
+  if(req>0){
+    hEl.textContent=`💖 ${collectedHearts}/${req}`;
+    hEl.style.color=collectedHearts>=req?"#4ade80":"#f472b6";
+  }else{
+    hEl.textContent=`💖 ${collectedHearts}`;
+    hEl.style.color="#f472b6";
+  }
+}
+
+function showGameOverlay(title,text,btnText){
+  $("ovTitle").textContent=title;
+  $("ovText").textContent=text;
+  $("ovBtn").textContent=btnText;
+  $("gameOverlay").classList.remove("hidden");
+}
+function hideGameOverlay(){
+  $("gameOverlay").classList.add("hidden");
+}
+
+let toastTimeout=null;
+function showToast(msg){
+  const t=$("gameToast");
+  t.textContent=msg;
+  t.classList.remove("hidden");
+  if(toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout=setTimeout(()=>t.classList.add("hidden"),2200);
+}
+
+// ═══════════════════════════════════════════════════════════
+// LEVEL MANAGEMENT
+// ═══════════════════════════════════════════════════════════
+function startLevel(idx){
+  currentLevel=idx;
+  const L=LEVELS[idx];
+  lives=CFG.MAX_LIVES;
+  collectedHearts=0;
+  score=0; world=0;
+  currentSpeed=0; targetSpeed=0;
+  resetPlatforms();
+  resetPlayer();
+  particles=[];
+  gameRunning=false;
+  paused=false;
+  trainPhase=0; trainMoved=false; trainJumped=false; trainWait=0;
+
+  showScreen("gameScreen");
+  updateHUD();
+
+  $("skipBtn").style.display=idx===0?"":"none";
+
+  if(idx===0){
+    showGameOverlay("Warm-up Ground 🏋️","Your guide will teach you the controls. Gentle voice = move. Quick loud sound = jump!","Start warm-up");
+  }else{
+    const personalMsgs=[
+      "",
+      "Collect 3 hearts 💖 & finish Sunny Meadow!",
+      "Collect 3 hearts 💖 & dodge the rockets!",
+      "Watch out for arrows & pits! 🏹",
+      "Things are getting wild! ⚡",
+      "The final challenge, Rakshita. You've got this! 🔥",
+    ];
+    showGameOverlay(
+      idx===5?"Final Level! 🔥":`Level ${idx}`,
+      personalMsgs[idx]||"Use your voice to move. A short loud sound to jump!",
+      "Start"
+    );
+  }
+}
+
+function completeLevel(){
+  gameRunning=false;
+  sfx("win");
+  triggerReactionPopup("reward", "Level Cleared! 🌟");
+
+  if(currentLevel===0){
+    // Training complete
+    showGameOverlay("You're ready! 🎉","Welcome to the battlefield, Rakshita. 😈","Enter Level 1 →");
+    TTS.speak("You're ready! Welcome to the battlefield, Rakshita.");
+    return;
+  }
+
+  completedLevels=Math.max(completedLevels,currentLevel);
+
+  if(currentLevel===5){
+    // Final level complete!
+    sfx("victory");
+    spawnConfetti(60);
+    setTimeout(()=>{
+      showRoadmap();
+    },800);
+  }else{
+    spawnConfetti(30);
+    setTimeout(()=>{
+      showRoadmap();
+    },500);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ROADMAP (Curved winding road design)
+// ═══════════════════════════════════════════════════════════
+function showRoadmap(){
+  state="ROADMAP";
+  showScreen("mapScreen");
+
+  if(currentLevel===5){
+    $("mapTitle").textContent="YOU MADE IT! 🏆";
+    $("mapText").textContent="Rakshita, you conquered the final battlefield!";
+    $("mapNextBtn").textContent="Reveal my reward 💛";
+    $("mapNextBtn").className="btn btn-gold";
+  }else{
+    $("mapTitle").textContent=`Level ${currentLevel} Complete! 🎉`;
+    $("mapText").textContent=currentLevel===4?"One more level to go...":"That was brave! The next challenge awaits.";
+    $("mapNextBtn").textContent="Next Level →";
+    $("mapNextBtn").className="btn btn-green";
+  }
+
+  // Build curved roadmap nodes
+  const wrap=$("roadmapNodes")||$("roadmap");
+  wrap.innerHTML="";
+
+  // Reward node at peak summit
+  const rNode=document.createElement("div");
+  rNode.className="road-node pos-center "+(completedLevels>=5?"done reward":"reward");
+  rNode.innerHTML=`<div class="node-icon">🎁</div><div><div class="node-label">${completedLevels>=5?"Reward Unlocked!":"??? Mystery Reward"}</div><div class="node-sub">${completedLevels>=5?"Tap Next to reveal":"Complete all 5 levels"}</div></div>`;
+  wrap.appendChild(rNode);
+
+  // Alternating positions matching the curved S-road SVG
+  // 5 (left) -> 4 (right) -> 3 (left) -> 2 (right) -> 1 (left)
+  const posMap={5:"pos-left", 4:"pos-right", 3:"pos-left", 2:"pos-right", 1:"pos-left"};
+
+  for(let i=5;i>=1;i--){
+    const isDone=i<=completedLevels;
+    const isCurrent=i===completedLevels+1;
+    const cls=isDone?"done":isCurrent?"current":"locked";
+    const pos=posMap[i]||"pos-center";
+    const node=document.createElement("div");
+    node.className=`road-node ${cls} ${pos}`;
+    const icon=isDone?"✓":isCurrent?"→":"🔒";
+    const themeName=LEVELS[i].name.split("—")[1]||LEVELS[i].name;
+    node.innerHTML=`<div class="node-icon">${icon}</div><div><div class="node-label">Level ${i}</div><div class="node-sub">${themeName}</div></div>`;
+    wrap.appendChild(node);
+  }
+
+  // Narrate
+  if(currentLevel===5){
+    TTS.speak("Rakshita, you actually did it. Five levels, all completed. Your reward is ready.");
+  }else{
+    const voiceMsgs=["","Great job, Rakshita!","Two down, three to go!","You're on fire, Rakshita!","Almost there! Just one more level!"];
+    TTS.speak(voiceMsgs[currentLevel]||"Level complete!");
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// REWARD / CERTIFICATE
+// ═══════════════════════════════════════════════════════════
+function showReward(){
+  state="FINAL_REVEAL";
+  showScreen("rewardScreen");
+  $("rewardPreReveal").style.display="flex";
+  $("rewardPreReveal").style.flexDirection="column";
+  $("rewardPreReveal").style.alignItems="center";
+  $("rewardPostReveal").style.display="none";
+  TTS.speak("Rakshita... your reward is ready. Are you ready to see it?");
+}
+
+function revealCertificate(){
+  state="CERTIFICATE";
+  TTS.stop();
+  $("rewardPreReveal").style.display="none";
+  $("rewardPostReveal").style.display="block";
+  sfx("victory");
+  spawnConfetti(80);
+  setTimeout(()=>spawnConfetti(40),1500);
+  setTimeout(()=>TTS.speak("Okay, maybe the real reward wasn't the certificate. Here's to many more adventures together."),2500);
+}
+
+// ═══════════════════════════════════════════════════════════
+// TRAINING LOGIC
+// ═══════════════════════════════════════════════════════════
+function updateTraining(dt){
+  const progress=LEVELS[0].dist>0?score/LEVELS[0].dist:0;
+
+  if(trainPhase===0){
+    if(currentSpeed>40){
+      trainMoved=true;
+      trainPhase=1;
+      showToast("You're moving! 🎉");
+      trainWait=1.5;
+    }
+  }
+  else if(trainPhase===1){
+    trainWait-=dt;
+    if(trainWait<=0){
+      showToast("Now try a quick loud sound to jump! 📢");
+      trainPhase=2;
+    }
+  }
+  else if(trainPhase===2){
+    if(!player.onGround){
+      trainJumped=true;
+      trainPhase=3;
+      showToast("Perfect jump! 🎯");
+      trainWait=1.5;
+    }
+  }
+  else if(trainPhase===3){
+    trainWait-=dt;
+    if(trainWait<=0){
+      showToast("Cross the gaps to finish warm-up! 🏃");
+      trainPhase=4;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAIN UPDATE
+// ═══════════════════════════════════════════════════════════
+function update(dt){
+  if(!gameRunning||paused) return;
+
+  // Voice processing
+  let voiceLevel=0, shouldJump=false, jumpStrength=0.5;
+  if(mic.ready){
+    const v=processVoice(dt);
+    voiceLevel=v.voiceLevel;
+    shouldJump=v.shouldJump;
+    jumpStrength=v.jumpStrength||0.5;
+  }
+
+  // Update voice meter
+  $("gameMeter").style.width=Math.floor(clamp(voiceLevel,0,1)*100)+"%";
+  if(voiceLevel>0.7){
+    $("voiceLabel").textContent="LOUD! 📢";
+  }else if(voiceLevel>0.2){
+    $("voiceLabel").textContent="Voice detected 🗣️";
+  }else{
+    $("voiceLabel").textContent="Listening... 🎙";
+  }
+
+  // Target speed from voice
+  const L=LEVELS[currentLevel];
+  targetSpeed=voiceLevel*L.speed;
+
+  // Smooth acceleration/deceleration
+  if(targetSpeed>currentSpeed){
+    currentSpeed=lerp(currentSpeed,targetSpeed,CFG.ACCEL*dt);
+  }else{
+    currentSpeed=lerp(currentSpeed,targetSpeed,CFG.DECEL*dt);
+  }
+  if(currentSpeed<5) currentSpeed=0;
+  currentSpeed=Math.min(currentSpeed,CFG.MAX_SPEED);
+
+  // Jump from voice with loudness-dependent jump strength
+  if(shouldJump) doJump(jumpStrength);
+
+  // World scroll
+  world+=currentSpeed*dt;
+  score+=currentSpeed*dt;
+
+  // Scroll platforms
+  updatePlatforms(dt);
+
+  // Player update & platform collision
+  updatePlayer(dt);
+
+  // Training logic
+  if(currentLevel===0) updateTraining(dt);
+
+  // Update particles
+  updateParticles(dt);
+
+  // Update HUD
+  updateHUD();
+
+  // Check level complete
+  if(score>=L.dist){
+    if(L.reqHearts>0 && collectedHearts<L.reqHearts){
+      if(Math.random()<0.02){
+        showToast(`Collect ${L.reqHearts} hearts to complete Level ${currentLevel}! 💖 (${collectedHearts}/${L.reqHearts})`);
+      }
+    }else{
+      completeLevel();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAIN RENDER
+// ═══════════════════════════════════════════════════════════
+const canvas=$("canvas"), ctx=canvas.getContext("2d");
+
+function render(){
+  ctx.clearRect(0,0,CFG.W,CFG.H);
+
+  // Background
+  drawBackground(ctx,currentLevel);
+
+  // Platforms & Hazards (Scream Go Hero style)
+  drawPlatforms(ctx,currentLevel);
+
+  // Player
+  drawPlayerChar(ctx);
+
+  // Particles
+  drawParticles(ctx);
+
+  // Level label on canvas
+  const L=LEVELS[currentLevel];
+  if(L){
+    ctx.fillStyle="rgba(15,23,42,.7)";
+    ctx.beginPath();
+    ctx.roundRect(14,14,220,38,8);
+    ctx.fill();
+    ctx.fillStyle="#fff";
+    ctx.font="bold 15px Nunito,sans-serif";
+    ctx.fillText(L.name,26,39);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAIN LOOP
+// ═══════════════════════════════════════════════════════════
+function mainLoop(ts){
+  const dt=Math.min(0.035,(ts-lastTs)/1000);
+  lastTs=ts;
+
+  // Process audio for calibration meter
+  if(mic.ready && state==="CALIBRATION"){
+    updateCalibration(dt);
+  }
+
+  // Game update & render
+  if(state==="PLAYING"||state==="TRAINING"){
+    update(dt);
+    render();
+  }else if(state==="PAUSED"){
+    render(); // still draw, just frozen
+  }
+
+  requestAnimationFrame(mainLoop);
+}
+
+// ═══════════════════════════════════════════════════════════
+// EVENT HANDLERS
+// ═══════════════════════════════════════════════════════════
+
+// Intro
+$("introStartBtn").addEventListener("click",()=>{sfx("click");startIntroDialogue();});
+$("introNext").addEventListener("click",nextIntro);
+$("introReplay").addEventListener("click",replayIntro);
+
+// Calibration
+$("calibStartBtn").addEventListener("click",startCalibration);
+$("calibDoneBtn").addEventListener("click",()=>{
+  sfx("click");
+  state="TRAINING";
+  startLevel(0);
+});
+
+// Game overlay button
+$("ovBtn").addEventListener("click",()=>{
+  sfx("click");
+  const ov=$("gameOverlay");
+
+  if(!gameRunning && lives<=0){
+    startLevel(currentLevel);
+    BGM.start();
+    return;
+  }
+
+  if(!gameRunning && currentLevel===0 && score>0){
+    startLevel(1);
+    state="PLAYING";
+    BGM.start();
+    return;
+  }
+
+  gameRunning=true;
+  paused=false;
+  state=currentLevel===0?"TRAINING":"PLAYING";
+  hideGameOverlay();
+  BGM.start();
+});
+
+// Jump buttons
+$("jumpBtn").addEventListener("click",doJump);
+
+// BGM Toggle
+$("bgmBtn").addEventListener("click",()=>{
+  sfx("click");
+  const muted=BGM.toggleMute();
+  $("bgmBtn").textContent=muted?"🎵 BGM: Off":"🎵 BGM: On";
+});
+
+// Skip warm-up → go straight to Level 1
+$("skipBtn").addEventListener("click",()=>{
+  sfx("click");
+  gameRunning=false;
+  state="PLAYING";
+  startLevel(1);
+});
+
+// Pause
+$("pauseBtn").addEventListener("click",()=>{
+  if(!gameRunning) return;
+  paused=!paused;
+  $("pauseBtn").textContent=paused?"▶ Resume":"⏸ Pause";
+  if(paused){
+    showGameOverlay("Paused","Take a breath. Resume when you're ready.","Resume");
+    state="PAUSED";
+  }else{
+    hideGameOverlay();
+    state=currentLevel===0?"TRAINING":"PLAYING";
+  }
+});
+
+// Quit
+$("quitBtn").addEventListener("click",()=>{
+  TTS.stop();
+  gameRunning=false;
+  state="INTRO";
+  introIdx=-1;
+  introStarted=false;
+  showScreen("introScreen");
+  $("introStartWrap").style.display="";
+  $("introDialogueWrap").style.display="none";
+});
+
+// Map next button
+$("mapNextBtn").addEventListener("click",()=>{
+  sfx("click");
+  if(completedLevels>=5){
+    showReward();
+  }else{
+    state="PLAYING";
+    startLevel(completedLevels+1);
+  }
+});
+
+// Reward buttons
+$("revealBtn").addEventListener("click",()=>{
+  sfx("click");
+  revealCertificate();
+});
+$("playAgainBtn").addEventListener("click",()=>{
+  TTS.stop();
+  state="INTRO";
+  completedLevels=0;
+  introIdx=-1;
+  introStarted=false;
+  showScreen("introScreen");
+  $("introStartWrap").style.display="";
+  $("introDialogueWrap").style.display="none";
+});
+
+// Keyboard
+window.addEventListener("keydown",e=>{
+  if(e.code==="Space"){
+    e.preventDefault();
+    if(state==="PLAYING"||state==="TRAINING") doJump();
+  }
+  if(e.code==="KeyP"&&gameRunning){
+    $("pauseBtn").click();
+  }
+  if(e.code==="Enter"){
+    if(state==="INTRO"&&introStarted) nextIntro();
+    else if(state==="INTRO"&&!introStarted){sfx("click");startIntroDialogue();}
+    else if(!$("gameOverlay").classList.contains("hidden")) $("ovBtn").click();
+  }
+});
+
+// Prevent double-tap zoom on mobile
+document.addEventListener("touchstart",e=>{
+  if(e.target.closest(".btn,.btn-sm")) e.preventDefault();
+},{passive:false});
+
+// Handle page visibility (pause when hidden)
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden && gameRunning && !paused){
+    $("pauseBtn").click();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+// INITIALIZATION
+// ═══════════════════════════════════════════════════════════
+TTS.init();
+initIntroDots();
+showScreen("introScreen");
+requestAnimationFrame(mainLoop);
+
+// Ensure AudioContext can be created after user gesture
+document.addEventListener("click",function initAudio(){
+  if(!mic.ctx){
+    try{
+      mic.ctx=new(window.AudioContext||window.webkitAudioContext)();
+      if(mic.ctx.state==="suspended") mic.ctx.resume();
+    }catch(e){}
+  }
+  document.removeEventListener("click",initAudio);
+},{once:false});
+
+})();
+</script>
+</body>
+</html>
