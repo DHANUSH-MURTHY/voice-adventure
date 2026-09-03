@@ -143,11 +143,11 @@ canvas{width:100%;height:auto;max-height:68vh;display:block;touch-action:none;ba
 .toast.hidden{display:none}
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-10px)}to{opacity:1;transform:translateX(-50%)}}
 
-/* ─── Dynamic Reaction Popups (Lost & Reward - Centered on top of Character) ─── */
+/* ─── Dynamic Reaction Popups (Positioned at Top Center - Completely Clear of Character View) ─── */
 .game-popup{position:absolute;z-index:30;pointer-events:none;
-  transform:translate(-50%, -100%);
+  transform:translate(-50%, 0);
   transition:opacity .22s ease, transform .28s cubic-bezier(0.34, 1.56, 0.64, 1)}
-.game-popup.hidden{opacity:0;transform:translate(-50%, -80%) scale(0.5);pointer-events:none}
+.game-popup.hidden{opacity:0;transform:translate(-50%, -20px) scale(0.85);pointer-events:none}
 .game-popup-card{display:flex;align-items:center;gap:12px;padding:8px 14px 8px 8px;border-radius:18px;
   background:rgba(17,24,39,0.96);backdrop-filter:blur(12px);border:2px solid var(--purple);
   box-shadow:0 12px 35px rgba(0,0,0,0.65);animation:popupBounce .35s cubic-bezier(0.34,1.56,0.64,1)}
@@ -371,7 +371,8 @@ canvas{width:100%;height:auto;max-height:68vh;display:block;touch-action:none;ba
     </div>
     <div class="toast hidden" id="gameToast">Nice! 🎉</div>
   </div>
-  <div class="game-action-wrap" style="margin-top:6px;display:flex;flex-direction:column;gap:6px;">
+  <!-- Joystick / Touch Action Controls: HIDDEN by default in Voice Play; only shown when user switches to Joystick mode -->
+  <div class="game-action-wrap" id="joystickActionWrap" style="margin-top:6px;display:none;flex-direction:column;gap:6px;">
     <div style="display:flex;gap:6px;">
       <button class="btn" id="runBtn" style="flex:1;min-height:48px;font-size:16px;font-weight:900;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:var(--r-md);box-shadow:0 6px 18px rgba(34,197,94,.35);letter-spacing:.5px;touch-action:manipulation;">▶ RUN</button>
       <button class="btn btn-jump" id="jumpBtn" style="flex:1;">⬆ JUMP</button>
@@ -382,13 +383,24 @@ canvas{width:100%;height:auto;max-height:68vh;display:block;touch-action:none;ba
     <div class="game-voice-label" style="display:flex;justify-content:space-between;align-items:center;">
       <span>🎙 <span id="voiceLabel">Voice power</span></span>
       <div style="display:flex;gap:6px;align-items:center;">
-        <button id="controlModeBtn" class="badge" style="cursor:pointer;border:none;background:var(--purple-d);color:var(--purple);font-weight:800;padding:4px 10px;border-radius:999px;font-size:11px;white-space:nowrap;">🎤 Voice Mode</button>
+        <!-- Clean Control Switcher with Round Arrow Mark Symbol (🔄) -->
+        <button id="controlModeBtn" class="badge" title="Switch between Voice and Joystick mode" style="cursor:pointer;border:1px solid rgba(255,255,255,0.18);background:var(--purple-d);color:var(--purple);font-weight:800;padding:4px 11px;border-radius:999px;font-size:11px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;transition:all .2s ease;">
+          <span class="round-arrow-icon" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.18);">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+              <path d="M21 21v-5h-5"/>
+            </svg>
+          </span>
+          <span id="controlModeText">Switch to Joystick 🕹️</span>
+        </button>
         <button id="micToggleBtn" class="badge" style="cursor:pointer;border:none;background:var(--card2);color:var(--gold);font-weight:800;padding:4px 10px;border-radius:999px;font-size:11px;">🎙️ Tap Mic</button>
       </div>
     </div>
     <div class="voice-meter"><div class="voice-meter-fill" id="gameMeter"></div></div>
   </div>
-  <p class="game-tip" id="gameTip">Gentle voice = run • Quick loud shout or tap JUMP • Shout mid-air to double jump!</p>
+  <p class="game-tip" id="gameTip">Gentle voice = run • Quick loud shout = jump • Shout mid-air to multi-jump!</p>
 </section>
 
 <!-- ═══ MAP / ROADMAP SCREEN ═══ -->
@@ -425,21 +437,32 @@ canvas{width:100%;height:auto;max-height:68vh;display:block;touch-action:none;ba
 
 <!-- ═══ REWARD / CERTIFICATE SCREEN ═══ -->
 <section id="rewardScreen" class="screen">
-  <div class="card card-glow center" style="flex:1;display:flex;flex-direction:column;justify-content:center">
-    <div id="rewardPreReveal">
-      <div style="font-size:48px;margin-bottom:12px">💛</div>
-      <h2 id="rewardTitle">Your reward is ready...</h2>
-      <p id="rewardSub">Are you ready to see it?</p>
-      <div class="btn-row" style="justify-content:center">
-        <button class="btn btn-gold" id="revealBtn">Reveal 💛</button>
+  <div class="card card-glow center" style="flex:1;display:flex;flex-direction:column;justify-content:center;max-height:92vh;overflow-y:auto;padding:18px 14px;">
+    <!-- Step 1: Video teaser before certificate -->
+    <div id="rewardPreReveal" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+      <div style="font-size:38px;">💛</div>
+      <h2 id="rewardTitle" style="font-size:21px;line-height:1.3;color:var(--gold);margin:0;">Do you need an Award more than me? 😉💛</h2>
+      <p id="rewardSub" style="color:var(--text2);font-size:13px;margin:0 0 6px 0;">Watch this special video before your final surprise!</p>
+      
+      <div class="reward-video-wrap" style="width:100%;max-width:320px;border-radius:18px;overflow:hidden;border:2px solid var(--gold);box-shadow:0 12px 36px rgba(245,158,11,0.35);background:#000;">
+        <video id="rewardVideo" controls playsinline preload="metadata" style="width:100%;display:block;max-height:340px;object-fit:cover;">
+          <source src="images/reward/WhatsApp Video 2026-09-03 at 5.28.50 PM.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+      </div>
+
+      <div class="btn-row" style="justify-content:center;margin-top:10px;">
+        <button class="btn btn-gold" id="revealBtn">See Certificate 🏆 →</button>
       </div>
     </div>
+    <!-- Step 2: Certificate Reveal & Download -->
     <div id="rewardPostReveal" style="display:none">
       <h2>🏆 You did it, Rakshita!</h2>
-      <p>You conquered all five levels. Here's what was waiting for you all along.</p>
+      <p>You conquered all five levels. Here's your official reward certificate!</p>
       <div class="cert-frame reward-reveal"><img src="certificate.png" alt="Certificate for Rakshita"></div>
       <p class="final-msg">"Okay... maybe the real reward wasn't the certificate. 😌<br>Here's to many more adventures together. ❤️"</p>
-      <div class="btn-row" style="justify-content:center;margin-top:16px">
+      <div class="btn-row" style="justify-content:center;gap:10px;margin-top:16px;flex-wrap:wrap;">
+        <a href="certificate.png" download="Rakshita_Adventure_Certificate.png" class="btn btn-gold" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">⬇ Download Certificate</a>
         <button class="btn btn-ghost" id="playAgainBtn">Play Again 🔁</button>
       </div>
     </div>
@@ -634,8 +657,8 @@ function getRms(){
 
 // Process voice: returns {voiceLevel: 0-1, shouldJump: bool, jumpStrength: 0-1}
 // ─── Voice Dynamics & Multi-Jump Shout Model ───
-// STEADY VOICE / SLOW SHOUT ("gooooo") → Moves forward fast, does NOT jump
-// SUDDEN SHOUT / 2ND SHOUT ("2nd hooooooo!") → Triggers jump (grounded OR mid-air)
+// STEADY VOICE ("gooooo") → Moves forward fast, does NOT jump
+// SUDDEN SHOUT ("Hah!") → Triggers jump (grounded OR mid-air multi-jump)
 function processVoice(dt){
   const rms=getRms();
   mic.rawRms=rms;
@@ -649,15 +672,11 @@ function processVoice(dt){
   mic.rmsHist.push(rms);
   if(mic.rmsHist.length>24) mic.rmsHist.shift();
 
-  // Recent average (last 10 frames ≈ 160ms)
-  const recent=mic.rmsHist.slice(-10);
-  const recentAvg=recent.reduce((a,b)=>a+b,0)/recent.length;
-
   // Cooldowns
   if(mic.jumpCD>0) mic.jumpCD-=dt;
   if(mic.jumpHyst>0) mic.jumpHyst-=dt*1.8;
 
-  // === Movement: Voice Level Controls Speed (Steady shout = maximum forward speed, no jump) ===
+  // === Movement: Voice Level Controls Speed (Steady voice = run speed) ===
   const moveT=mic.moveThreshold;
   let voiceLevel=0;
   if(mic.smoothRms>moveT){
@@ -668,42 +687,31 @@ function processVoice(dt){
 
   // === Jump Detection: Edge-triggered shout spike ===
   let shouldJump=false;
-  let jumpStrength=0.5;
-  const effectiveJumpT=mic.jumpThreshold*(1+Math.max(0, mic.jumpHyst)*0.20);
+  let jumpStrength=0.65;
+  const effectiveJumpT=mic.jumpThreshold*(1+Math.max(0, mic.jumpHyst)*0.15);
 
-  // Sharp rise spike: sound rises quickly above recent rolling average
-  const isSpike=rms>effectiveJumpT && (rms>recentAvg*1.32 || rms>mic.smoothRms*1.22);
+  const isAboveJump = rms >= effectiveJumpT;
+  const isRisingFast = rms > mic.prevRms * 1.05 || rms > mic.smoothRms * 1.10;
 
-  // Track rising-edge frames
-  if(rms>mic.prevRms*1.08 && rms>effectiveJumpT*0.60){
-    mic.spikeFrames++;
+  if(!player.onGround){
+    // In mid-air: highly responsive multi-jump shout detection!
+    // Successive shouts or bursts ("Hah! Hah! Hah!") reliably trigger consecutive mid-air jumps
+    if(isAboveJump && (isRisingFast || rms > effectiveJumpT * 1.08) && mic.jumpCD <= 0){
+      shouldJump = true;
+      mic.jumpCD = 0.13; // Snappy recovery for chaining multi-jumps in air!
+      mic.jumpHyst = 0.08;
+    }
   }else{
-    mic.spikeFrames=Math.max(0, mic.spikeFrames-1);
-  }
-
-  // Track sustain frames: if user makes a long steady sound, sustainFrames grows
-  // A long steady shout ("gooooo") moves forward at full speed without triggering jumps
-  if(rms>effectiveJumpT*0.70){
-    mic.sustainFrames++;
-  }else{
-    mic.sustainFrames=0;
-  }
-
-  // Trigger jump: requires fresh onset spike (1-7 frames), NOT a drawn-out sustained yell (>8 frames), cooldown done
-  // When user gives a 2nd shout ("goooo ... 2nd hooooooo!"), the dip resets sustainFrames, allowing the 2nd jump!
-  if(isSpike && mic.spikeFrames>=1 && mic.spikeFrames<=7 && mic.sustainFrames<9 && mic.jumpCD<=0){
-    shouldJump=true;
-    const delta=rms-effectiveJumpT;
-    const maxDelta=Math.max(0.04,(mic.jumpPeak||0.20)-effectiveJumpT);
-    jumpStrength=clamp(0.20+(delta/maxDelta)*0.80, 0.20, 1.0);
-    mic.jumpCD=0.22; // Snappy recovery: allows immediate 2nd shout mid-air ("goooo -> hooooo!")
-    mic.jumpHyst=0.20;
-    mic.spikeFrames=0;
-    mic.sustainFrames=0;
+    // On ground:
+    if(isAboveJump && isRisingFast && mic.jumpCD <= 0){
+      shouldJump = true;
+      mic.jumpCD = 0.18;
+      mic.jumpHyst = 0.15;
+    }
   }
 
   mic.prevRms=rms;
-  return {voiceLevel, shouldJump, jumpStrength};
+  return {voiceLevel, shouldJump, jumpStrength: 0.65};
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -959,11 +967,9 @@ function triggerReactionPopup(type, customText){
   if(popTxt) popTxt.textContent=text;
   pop.className="game-popup "+(isLost?"popup-lost":"popup-reward");
 
-  // Center directly on top of the game character
-  const charCenterX = ((player.x + player.w/2) / CFG.W) * 100;
-  const charTopY = Math.max(16, ((player.y - 20) / CFG.H) * 100);
-  pop.style.left = clamp(charCenterX, 22, 78) + "%";
-  pop.style.top = clamp(charTopY, 18, 75) + "%";
+  // Position at top center of game canvas so character view and upcoming obstacles are 100% clear
+  pop.style.left = "50%";
+  pop.style.top = "14%";
 
   if(popupTimer) clearTimeout(popupTimer);
   popupTimer=setTimeout(()=>{
@@ -1314,35 +1320,29 @@ function resetPlayer(){
 
 let jumpForwardBoost=0;
 
-function doJump(strength=0.5){
+function doJump(strength=0.65){
   if(!gameRunning||paused) return;
-  const s=(typeof strength==="number" && !isNaN(strength))?clamp(strength,0,1):0.65;
 
-  // Ground jump OR mid-air shout jump / double jump ("goooo -> 2nd hooooooo!")
-  // Allows up to 3 mid-air boosts so player can chain shouts in the air
-  if(player.onGround || (player.airJumps||0) < 3){
-    const isMidAir = !player.onGround;
+  // Ground jump OR mid-air shout jump / multi-jump ("need mid air muliple jum in the voice play")
+  // Generous limit (up to 25 mid-air jumps) so player can freely multi-jump in mid-air
+  const isMidAir = !player.onGround;
+  if(player.onGround || (player.airJumps||0) < 25){
     if(isMidAir){
       player.airJumps = (player.airJumps||0) + 1;
     }else{
       player.airJumps = 0;
     }
 
-    // Upward launch velocity (mid-air jump resets downward fall momentum)
-    const minJ = isMidAir ? -490 : -420;
-    const maxJ = isMidAir ? -760 : -740;
-    player.vy = lerp(minJ, maxJ, s);
+    // Launch velocity is identical whether triggered by button or voice shout
+    // Mid-air jump immediately resets downward falling velocity and launches upward
+    player.vy = isMidAir ? -530 : -560;
     player.onGround = false;
     player.jumpFrame = 1;
 
-    // Forward leap momentum proportional to shout intensity
-    const L = LEVELS[currentLevel]||LEVELS[0];
-    const minLeap = Math.max(L.speed*0.60, 140);
-    const maxLeap = Math.max(L.speed*1.40, 300);
-    jumpForwardBoost = lerp(minLeap, maxLeap, s);
-    currentSpeed = Math.max(currentSpeed, jumpForwardBoost);
+    // Maintain current running speed during flight if player was running, but do NOT inject artificial forward boost
+    jumpForwardBoost = currentSpeed > 10 ? currentSpeed : 0;
 
-    // Dynamic particle burst (cyan/pink for mid-air double jump, gold for ground jump)
+    // Dynamic particle burst (cyan/pink for mid-air multi jump, gold for ground jump)
     const colors = isMidAir ? ["#38bdf8", "#ec4899", "#fbbf24", "#fff"] : ["#fbbf24", "#f59e0b", "#fff"];
     emitParticles(player.x+player.w/2, player.y+player.h, isMidAir ? 10 : 6, colors);
     sfx("jump");
@@ -1390,12 +1390,23 @@ function updatePlayer(dt){
     const targetGround=plat.y-player.h;
     // Land on top surface
     if(player.y>=targetGround && player.vy>=0 && player.y<=targetGround+30){
+      const wasAirborne = !player.onGround;
       player.y=targetGround;
       player.vy=0;
       player.onGround=true;
       player.jumpFrame=0;
       player.airJumps=0; // reset mid-air jumps upon landing
       lastSafePlat=plat;
+
+      if(wasAirborne){
+        jumpForwardBoost=0;
+        // Stop immediately upon landing: stay in place and do not move forward automatically!
+        if(targetSpeed<=0){
+          currentSpeed=0;
+        }else{
+          currentSpeed=Math.min(currentSpeed, targetSpeed);
+        }
+      }
     }else if(player.y>targetGround+30 && player.x+player.w>plat.x && player.x<plat.x+plat.w){
       // Hit platform side wall (jump wasn't high enough)
       if(player.inv<=0){
@@ -2349,12 +2360,19 @@ function showReward(){
   $("rewardPreReveal").style.flexDirection="column";
   $("rewardPreReveal").style.alignItems="center";
   $("rewardPostReveal").style.display="none";
-  TTS.speak("Rakshita... your reward is ready. Are you ready to see it?");
+  const vid=$("rewardVideo");
+  if(vid){
+    vid.currentTime=0;
+    vid.play().catch(e=>console.log("Video autoplay info:", e));
+  }
+  TTS.speak("Do you need an award more than me, Rakshita? Watch this video first!");
 }
 
 function revealCertificate(){
   state="CERTIFICATE";
   TTS.stop();
+  const vid=$("rewardVideo");
+  if(vid) vid.pause();
   $("rewardPreReveal").style.display="none";
   $("rewardPostReveal").style.display="block";
   sfx("victory");
@@ -2450,12 +2468,15 @@ function update(dt){
     jumpForwardBoost=Math.max(jumpForwardBoost*0.997, 0);
   }else{
     jumpForwardBoost=0;
-    if(currentSpeed<5) currentSpeed=0;
+    // When on ground, if no forward input (voice quiet or joystick released), stop immediately!
+    if(targetSpeed<=0){
+      currentSpeed=0;
+    }
   }
   currentSpeed=Math.min(currentSpeed,CFG.MAX_SPEED);
 
-  // Jump from voice with loudness-dependent jump strength
-  if(shouldJump) doJump(jumpStrength);
+  // Jump from voice with standardized jump strength
+  if(shouldJump) doJump(0.65);
 
   // World scroll — accelerated in Assist Mode so level finishes fast and fun!
   const assistMult = isAssistModeActive() ? 1.75 : 1.0;
@@ -2606,17 +2627,28 @@ if($("runBtn")){
 // ─── Control Mode Toggle (Voice 🎤 ↔ Joystick 🕹️) ───
 function updateControlModeUI(){
   const btn=$("controlModeBtn");
+  const label=$("controlModeText");
+  const actionWrap=$("joystickActionWrap");
   const tip=$("gameTip");
+
   if(controlMode==='voice'){
-    btn.textContent="🎤 Voice Mode";
-    btn.style.background="var(--purple-d)";
-    btn.style.color="var(--purple)";
-    if(tip) tip.textContent="Gentle voice = run • Quick loud shout or tap JUMP • Shout mid-air to double jump!";
+    if(label) label.textContent="Switch to Joystick 🕹️";
+    if(btn){
+      btn.style.background="var(--purple-d)";
+      btn.style.color="var(--purple)";
+      btn.style.borderColor="rgba(255,255,255,0.18)";
+    }
+    if(actionWrap) actionWrap.style.display="none"; // Absolutely NO JUMP / RUN BUTTON in voice play!
+    if(tip) tip.textContent="Gentle voice = run • Quick loud shout = jump • Shout mid-air to multi-jump!";
   }else{
-    btn.textContent="🕹️ Joystick Mode";
-    btn.style.background="linear-gradient(135deg,#16a34a,#15803d)";
-    btn.style.color="#fff";
-    if(tip) tip.textContent="Hold RUN ▶ to move forward • Tap JUMP ⬆ to jump • Tap JUMP mid-air for double jump!";
+    if(label) label.textContent="Switch to Voice 🎤";
+    if(btn){
+      btn.style.background="linear-gradient(135deg,#16a34a,#15803d)";
+      btn.style.color="#fff";
+      btn.style.borderColor="#22c55e";
+    }
+    if(actionWrap) actionWrap.style.display="flex"; // Show jump & run buttons in joystick play!
+    if(tip) tip.textContent="Hold RUN ▶ to move forward • Tap JUMP ⬆ to jump • Tap JUMP mid-air to multi-jump!";
   }
 }
 if($("controlModeBtn")){
